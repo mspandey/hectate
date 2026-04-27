@@ -15,8 +15,9 @@
     }
   ],
   "rewrites": [
+    { "source": "/_/backend/(.*)", "destination": "/backend/index.js" },
     { "source": "/api/(.*)", "destination": "/backend/index.js" },
     { "source": "/health", "destination": "/backend/index.js" },
-    { "source": "/((?!api/|health).*).*", "destination": "/$1" }
+    { "source": "/((?!api/|health|_/backend).*).*", "destination": "/$1" }
   ]
 }
