@@ -63,3 +63,5 @@ debug_db_check.cjs
 debug_db_check.js
 test-post.js
 view_images.html
+
+.vercel
