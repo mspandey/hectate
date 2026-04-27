@@ -19,7 +19,7 @@ export default function TypeAnimation({ text, speed = 50, onComplete }) {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'white',
+      position: 'fixed', inset: 0, background: 'var(--bg-main, #050505)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       zIndex: 9999
     }}>

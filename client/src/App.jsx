@@ -68,6 +68,14 @@ const AppRoutes = () => {
   const { isVerified, user } = useContext(AuthContext)
   const [showSplash, setShowSplash] = useState(true)
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+      console.log("🛡️ HECTATE: Splash Screen Fail-safe Triggered.")
+    }, 5000); 
+    return () => clearTimeout(timer);
+  }, []);
+
   useCursorTracker()
 
   if (showSplash && !user) {
