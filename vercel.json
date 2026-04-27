@@ -14,10 +14,11 @@
       "use": "@vercel/node"
     }
   ],
-  "rewrites": [
-    { "source": "/_/backend/(.*)", "destination": "/backend/index.js" },
-    { "source": "/api/(.*)", "destination": "/backend/index.js" },
-    { "source": "/health", "destination": "/backend/index.js" },
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/backend/index.js" },
+    { "src": "/_/backend/(.*)", "dest": "/backend/index.js" },
+    { "src": "/health", "dest": "/backend/index.js" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
