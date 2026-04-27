@@ -49,9 +49,6 @@ backend/*.db-wal
 # heavy or temporary files
 *.zip
 *.traineddata
-*.jpg
-*.png
-*.pdf
 dummy_aadhaar.jpg
 hin.traineddata
 backend.zip
