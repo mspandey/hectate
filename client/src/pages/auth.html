@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>hectate - Secure Auth</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #10131b;
+            overflow: hidden;
+        }
+        .glass-panel {
+            background: rgba(49, 53, 62, 0.7);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(0, 255, 255, 0.15);
+        }
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: 0;
+        }
+        .orb-cyan {
+            background: rgba(0, 255, 255, 0.15);
+            width: 400px;
+            height: 400px;
+            top: -100px;
+            right: -100px;
+        }
+        .orb-magenta {
+            background: rgba(255, 0, 255, 0.1);
+            width: 500px;
+            height: 500px;
+            bottom: -150px;
+            left: -150px;
+        }
+        .input-glow:focus-within {
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+            border-color: #00fbfb;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary-container": "#e9ddff",
+                        "surface-container": "#1c2028",
+                        "on-primary": "#003737",
+                        "error-container": "#93000a",
+                        "surface-container-high": "#262a33",
+                        "secondary-container": "#fe00fe",
+                        "outline": "#839493",
+                        "on-secondary-container": "#500050",
+                        "inverse-primary": "#006a6a",
+                        "on-secondary-fixed": "#380038",
+                        "secondary": "#ffabf3",
+                        "background": "#10131b",
+                        "on-secondary": "#5b005b",
+                        "inverse-on-surface": "#2d3039",
+                        "outline-variant": "#3a4a49",
+                        "primary": "#ffffff",
+                        "surface-container-low": "#181c24",
+                        "on-primary-fixed": "#002020",
+                        "on-surface-variant": "#b9cac9",
+                        "on-error-container": "#ffdad6",
+                        "on-tertiary": "#3c0090",
+                        "inverse-surface": "#e0e2ee",
+                        "surface-variant": "#31353e",
+                        "surface-bright": "#353942",
+                        "surface": "#10131b",
+                        "tertiary-fixed-dim": "#d1bcff",
+                        "on-error": "#690005",
+                        "surface-tint": "#00dddd",
+                        "surface-container-lowest": "#0a0e16",
+                        "on-surface": "#e0e2ee",
+                        "surface-container-highest": "#31353e",
+                        "surface-dim": "#10131b",
+                        "on-tertiary-container": "#7829ff",
+                        "on-background": "#e0e2ee",
+                        "on-tertiary-fixed-variant": "#5700c9",
+                        "error": "#ffb4ab",
+                        "on-primary-fixed-variant": "#004f4f",
+                        "on-tertiary-fixed": "#23005b",
+                        "primary-fixed-dim": "#00dddd",
+                        "primary-fixed": "#00fbfb",
+                        "secondary-fixed": "#ffd7f5",
+                        "primary-container": "#00fbfb",
+                        "tertiary": "#ffffff",
+                        "secondary-fixed-dim": "#ffabf3",
+                        "on-secondary-fixed-variant": "#810081",
+                        "tertiary-fixed": "#e9ddff",
+                        "on-primary-container": "#007070"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface-dim text-on-surface flex items-center justify-center min-h-screen relative overflow-hidden">
+<!-- Background Orbs -->
+<div class="orb orb-cyan"></div>
+<div class="orb orb-magenta"></div>
+<!-- Header / Brand (TopAppBar Logic) -->
+<header class="fixed top-0 w-full flex justify-between items-center px-6 py-4 z-50">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-fixed text-2xl" style="font-variation-settings: 'FILL' 1;">shield_person</span>
+<span class="text-2xl font-bold tracking-tighter text-primary-fixed drop-shadow-[0_0_8px_rgba(0,255,255,0.4)] font-inter">hectate</span>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-on-surface-variant font-label text-[10px] uppercase tracking-widest hover:text-primary-fixed transition-colors">Help</button>
+<button class="text-on-surface-variant font-label text-[10px] uppercase tracking-widest hover:text-primary-fixed transition-colors">Privacy</button>
+</div>
+</header>
+<!-- Main Auth Canvas -->
+<main class="relative z-10 w-full max-w-md px-6">
+<div class="glass-panel rounded-3xl p-8 shadow-[0_40px_80px_rgba(0,0,0,0.6)] border border-outline-variant/20 relative overflow-hidden">
+<!-- Subtle internal glow -->
+<div class="absolute -top-24 -left-24 w-48 h-48 bg-primary-fixed/5 blur-3xl rounded-full"></div>
+<div class="relative z-10">
+<!-- Title Section -->
+<div class="mb-10 text-center">
+<h1 class="text-3xl font-extrabold tracking-tight text-on-surface mb-2">Welcome Back</h1>
+<p class="text-on-surface-variant body-lg font-light">Your safety sanctuary is just a heartbeat away.</p>
+</div>
+<!-- Form Section -->
+<form class="space-y-8">
+<div class="space-y-6">
+<!-- Input Field -->
+<div class="group relative">
+<label class="absolute -top-3 left-4 px-1 bg-surface-container-highest text-[10px] font-semibold uppercase tracking-widest text-primary-fixed z-20">Identity Link</label>
+<div class="flex items-center bg-surface-container-low rounded-xl border border-outline-variant/30 px-4 py-4 transition-all duration-300 input-glow">
+<span class="material-symbols-outlined text-on-surface-variant mr-3 group-focus-within:text-primary-fixed">fingerprint</span>
+<input class="bg-transparent border-none focus:ring-0 text-on-surface w-full placeholder:text-on-surface-variant/40 placeholder:font-light" placeholder="Enter Mobile Number or Aadhaar" type="text"/>
+</div>
+</div>
+<div class="flex items-center justify-between px-2">
+<label class="flex items-center gap-2 cursor-pointer group">
+<input class="rounded border-outline-variant/30 bg-surface-container text-primary-fixed focus:ring-primary-fixed focus:ring-offset-surface" type="checkbox"/>
+<span class="text-xs text-on-surface-variant font-medium group-hover:text-on-surface">Remember Device</span>
+</label>
+<a class="text-xs text-secondary font-semibold hover:opacity-80" href="#">Trouble Signing In?</a>
+</div>
+</div>
+<!-- Primary Action (Pulse Button) -->
+<button class="w-full bg-primary-fixed text-on-primary-fixed font-bold py-5 rounded-full shadow-[0_0_20px_rgba(0,255,255,0.4)] hover:scale-[1.02] active:scale-95 transition-all duration-300 flex items-center justify-center gap-3" type="button">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">bolt</span>
+                        Send Security Pulse (OTP)
+                    </button>
+</form>
+<!-- Footer Links inside Card -->
+<div class="mt-10 pt-8 border-t border-outline-variant/10 text-center">
+<p class="text-on-surface-variant text-sm font-light">
+                        New to the community? 
+                        <a class="text-primary-fixed font-semibold ml-1 hover:underline" href="#">Create Secure Vault</a>
+</p>
+</div>
+</div>
+</div>
+<!-- Secondary Security Visuals (Floating Cards) -->
+<div class="mt-8 grid grid-cols-2 gap-4 opacity-60">
+<div class="glass-panel p-4 rounded-2xl flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-secondary-container/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary text-sm" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+</div>
+<div>
+<p class="text-[10px] font-bold text-on-surface tracking-wide uppercase">Encrypted</p>
+<p class="text-[8px] text-on-surface-variant">256-bit AES</p>
+</div>
+</div>
+<div class="glass-panel p-4 rounded-2xl flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-primary-fixed/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary-fixed text-sm" style="font-variation-settings: 'FILL' 1;">diversity_3</span>
+</div>
+<div>
+<p class="text-[10px] font-bold text-on-surface tracking-wide uppercase">Community</p>
+<p class="text-[8px] text-on-surface-variant">Verified Guardians</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Decoration / Legal -->
+<footer class="fixed bottom-6 w-full text-center z-50 pointer-events-none">
+<p class="text-[10px] text-on-surface-variant/40 font-semibold tracking-[0.2em] uppercase">Trusted by 2M+ Women Across Bharat</p>
+</footer>
+<!-- Texture Overlay -->
+<div class="fixed inset-0 pointer-events-none opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
+</body></html>

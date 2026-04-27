@@ -1,0 +1,123 @@
+/* Uiverse-inspired Animated Navbar for hectate - Burgundy Theme */
+.nav-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: auto;
+}
+
+.nav-container {
+  position: relative;
+  width: 540px; /* Wider for 5 buttons */
+  height: 60px;
+  background-color: #1a1515; /* Deep Charcoal-Burgundy */
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 10px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  border: 1px solid rgba(128, 0, 32, 0.2);
+}
+
+.nav-btn {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #fce4ec;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: 0.3s;
+  width: 100px;
+  text-decoration: none;
+  z-index: 2;
+}
+
+.nav-btn svg {
+  color: #fce4ec;
+  transition: 0.3s;
+}
+
+.nav-btn:hover {
+  color: #ff2d55;
+}
+
+.nav-btn:hover svg {
+  transform: translateY(-2px);
+  color: #ff2d55;
+}
+
+.nav-btn.active {
+  color: #ff2d55;
+}
+
+.nav-outline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.nav-rect {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: #800020; /* Burgundy */
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 0 1100; /* Start invisible */
+  stroke-dashoffset: 0;
+  transition: stroke-dasharray 0.5s ease, stroke-dashoffset 0.5s ease;
+}
+
+/* Hover Logic adapted for 5 segments */
+/* Segment 1: Dashboard */
+.nav-btn:nth-child(1):hover ~ .nav-outline .nav-rect {
+  stroke-dasharray: 100 1100;
+  stroke-dashoffset: 0;
+}
+
+/* Segment 2: Community */
+.nav-btn:nth-child(2):hover ~ .nav-outline .nav-rect {
+  stroke-dasharray: 100 1100;
+  stroke-dashoffset: -108;
+}
+
+/* Segment 3: Lawyers */
+.nav-btn:nth-child(3):hover ~ .nav-outline .nav-rect {
+  stroke-dasharray: 100 1100;
+  stroke-dashoffset: -216;
+}
+
+/* Segment 4: Profile */
+.nav-btn:nth-child(4):hover ~ .nav-outline .nav-rect {
+  stroke-dasharray: 100 1100;
+  stroke-dashoffset: -324;
+}
+
+@media (max-width: 600px) {
+  .nav-container {
+    width: 320px;
+    height: auto;
+    flex-wrap: wrap;
+    padding: 10px;
+  }
+  .nav-btn {
+    width: 60px;
+    font-size: 8px;
+  }
+  .nav-outline {
+    display: none;
+  }
+}

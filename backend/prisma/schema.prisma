@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id                 String   @id @default(uuid())
+  email              String?  @unique
+  mobileNumber       String?  @unique
+  passwordHash       String
+  name               String
+  alias              String   @unique
+  dob                DateTime
+  gender             String?  @default("Female")
+  cityState          String?
+  
+  verified           Boolean  @default(false)
+  verificationMethod String?  // aadhaar, college_id, face
+  aadhaarHash        String?  @unique
+  
+  displayMode        String   @default("public") // public, anonymous
+  role               String   @default("user") // user, lawyer, moderator
+  
+  googleId           String?  @unique
+  
+  failedLoginAttempts Int      @default(0)
+  lockedUntil        DateTime?
+  
+  // Admin & Security Fields
+  totpSecret         String?
+  sessionVersion     Int      @default(0)
+  status             String   @default("active") // active, blocked
+  blockedAt          DateTime?
+  blockedBy          String?
+  blockReason        String?
+  unblockAt          DateTime?
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  verificationAttempts VerificationAttempt[]
+  kycVerifications     KYCVerification[]
+  securityLogs         SecurityLog[]
+  sessions             Session[]
+  posts                Post[]
+  sosEvents            SOSEvent[]
+  lawyerProfile        LawyerProfile?
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  token        String   @unique
+  userAgent    String?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdminAuditLog {
+  id           String   @id @default(uuid())
+  adminId      String
+  adminEmail   String
+  action       String
+  targetType   String?
+  targetId     String?
+  reason       String?
+  metadata     String?  // stored as JSON string
+  ipAddress    String
+  userAgent    String?
+  success      Boolean  @default(true)
+  timestamp    DateTime @default(now())
+}
+
+model Post {
+  id           String   @id @default(uuid())
+  userId       String
+  content      String
+  cwTags       String?
+  flagCount    Int      @default(0)
+  createdAt    DateTime @default(now())
+  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SOSEvent {
+  id           String   @id @default(uuid())
+  userId       String
+  latitude     Float
+  longitude    Float
+  address      String?
+  status       String   @default("active") // active, resolved, cancelled
+  cancelReason String?
+  createdAt    DateTime @default(now())
+  resolvedAt   DateTime?
+  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LawyerProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  barCouncilNo String
+  status       String   @default("pending") // pending, active, suspended
+  createdAt    DateTime @default(now())
+  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationAttempt {
+  id           String   @id @default(uuid())
+  userId       String
+  method       String
+  status       String   // pending, success, failed, pending_review
+  imageUrl     String?  // for OCR or face match
+  ocrResult    String?
+  matchScore   Float?
+  liveness     Boolean?
+  ipAddress    String?
+  deviceInfo   String?
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id])
+}
+
+model KYCVerification {
+  id               String   @id @default(uuid())
+  userId           String
+  fullName         String
+  idNumber         String   // Masked or Hashed in production logs, but stored here for lookup
+  idType           String   // PAN, Aadhaar
+  documentUrl      String?  
+  status           String   // verified, failed, pending
+  message          String?
+  providerResponse String?  // Detailed JSON from HyperVerge/IDfy
+  ipAddress        String?
+  userAgent        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user             User     @relation(fields: [userId], references: [id])
+}
+
+model SecurityLog {
+  id           String   @id @default(uuid())
+  userId       String?
+  action       String   // login_success, login_failed, registration, verification_attempt, lockout, kyc_attempt
+  ipAddress    String?
+  deviceInfo   String?
+  details      String?
+  createdAt    DateTime @default(now())
+
+  user         User?    @relation(fields: [userId], references: [id])
+}
+
+model SystemSetting {
+  id        String   @id @default("global")
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}

@@ -1,0 +1,68 @@
+# dependencies
+node_modules/
+backend/node_modules/
+client/node_modules/
+
+# env
+.env
+.env.*
+
+# build
+dist/
+build/
+client/dist/
+
+# logs
+*.log
+python_log.txt
+backend/*.log
+backend/pip_log.txt
+
+# system
+.DS_Store
+Thumbs.db
+.claude/
+scratch/
+
+# python
+__pycache__/
+*.pyc
+venv/
+.venv/
+env/
+.env_python/
+**/venv/
+**/.venv/
+**/env/
+backend/python_service/venv/
+backend/python_service/.venv/
+services/verification/venv/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+
+# heavy or temporary files
+*.zip
+*.traineddata
+*.jpg
+*.png
+*.pdf
+dummy_aadhaar.jpg
+hin.traineddata
+backend.zip
+ilovepdf_pages-to-jpg.zip
+ilovepdf_pages-to-jpg/
+Twitter-Sentiment-Analysis-master/
+
+# other
+check_db_cols.cjs
+check_tables.js
+debug_db_check.cjs
+debug_db_check.js
+test-post.js
+view_images.html

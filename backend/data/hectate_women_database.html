@@ -1,0 +1,385 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --pk:#e0177a;--pk2:#ff4fa0;--pk3:#ffadd8;
+  --pu:#7b1fa2;--pu2:#ab47bc;--pu3:#ce93d8;
+  --bg:#0b0614;--bg2:#130a20;--bg3:#1a0d2b;
+  --glass:rgba(155,30,180,0.07);
+  --gb:rgba(224,23,122,0.28);
+  --text:#f3e8ff;--muted:#a07ab0;--dim:#6a4f7a;
+}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 65% 55% at 5% 5%,rgba(123,31,162,0.2) 0%,transparent 60%),
+  radial-gradient(ellipse 55% 45% at 95% 95%,rgba(224,23,122,0.15) 0%,transparent 60%),
+  radial-gradient(ellipse 35% 35% at 50% 15%,rgba(171,71,188,0.08) 0%,transparent 60%)}
+body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(rgba(224,23,122,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(123,31,162,0.03) 1px,transparent 1px);
+  background-size:50px 50px}
+
+.wrap{position:relative;z-index:1;padding:0 1rem 3rem}
+
+/* TOP BAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid rgba(224,23,122,0.2);margin-bottom:0;background:rgba(11,6,20,0.85);backdrop-filter:blur(20px);position:sticky;top:0;z-index:50}
+.logo{font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:900;letter-spacing:5px;background:linear-gradient(135deg,var(--pu2),var(--pk),var(--pk2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.top-badge{font-size:.65rem;letter-spacing:2px;padding:.25rem .9rem;border-radius:50px;background:rgba(224,23,122,0.12);border:1px solid rgba(224,23,122,0.35);color:var(--pk2);text-transform:uppercase;font-weight:700}
+
+/* TABS */
+.tabs{display:flex;gap:0;border-bottom:1px solid rgba(224,23,122,0.2);margin-bottom:2rem;padding-top:1.5rem}
+.tab{padding:.65rem 1.5rem;font-family:'Rajdhani',sans-serif;font-size:.85rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border:none;background:transparent;color:var(--muted);border-bottom:2px solid transparent;transition:.25s;margin-bottom:-1px}
+.tab.on{color:var(--pk2);border-bottom-color:var(--pk)}
+.tab:hover:not(.on){color:var(--pu3)}
+
+/* SEARCH + FILTER BAR */
+.bar{display:flex;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center}
+.search-wrap{flex:1;min-width:180px;position:relative}
+.search-wrap input{width:100%;padding:.6rem 1rem .6rem 2.2rem;background:rgba(255,255,255,0.04);border:1px solid rgba(224,23,122,0.25);border-radius:8px;color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.9rem;outline:none;transition:.2s}
+.search-wrap input:focus{border-color:rgba(224,23,122,0.6);background:rgba(224,23,122,0.06)}
+.search-wrap input::placeholder{color:var(--dim)}
+.search-icon{position:absolute;left:.7rem;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem;pointer-events:none}
+.filter-select{padding:.6rem .9rem;background:rgba(123,31,162,0.1);border:1px solid rgba(123,31,162,0.35);border-radius:8px;color:var(--pu3);font-family:'Rajdhani',sans-serif;font-size:.82rem;font-weight:600;outline:none;cursor:pointer;letter-spacing:1px}
+.stat-pills{display:flex;gap:.5rem;flex-wrap:wrap}
+.pill{font-size:.7rem;letter-spacing:1.5px;padding:.25rem .75rem;border-radius:50px;text-transform:uppercase;font-weight:700}
+.pill-pk{background:rgba(224,23,122,0.12);border:1px solid rgba(224,23,122,0.3);color:var(--pk2)}
+.pill-pu{background:rgba(123,31,162,0.12);border:1px solid rgba(123,31,162,0.3);color:var(--pu3)}
+
+/* SECTION TITLE */
+.sec-title{font-family:'Orbitron',monospace;font-size:.8rem;letter-spacing:3px;color:var(--pk2);text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;gap:.6rem}
+.sec-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(224,23,122,0.3),transparent)}
+
+/* MEMBER GRID */
+.member-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-bottom:2.5rem}
+.member-card{background:rgba(255,255,255,0.03);border:1px solid rgba(224,23,122,0.22);border-radius:14px;padding:1.2rem;transition:.3s;cursor:pointer;position:relative;overflow:hidden}
+.member-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--pk),transparent);opacity:.6}
+.member-card:hover{border-color:rgba(224,23,122,0.55);background:rgba(224,23,122,0.06);transform:translateY(-2px)}
+.member-avatar{width:52px;height:52px;border-radius:50%;margin:0 auto .75rem;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',monospace;font-size:1rem;font-weight:700;position:relative;color:#fff}
+.member-avatar::after{content:'';position:absolute;inset:-2px;border-radius:50%;background:conic-gradient(var(--pk),var(--pu),var(--pk));z-index:-1}
+.member-name{font-family:'Orbitron',monospace;font-size:.75rem;font-weight:700;text-align:center;letter-spacing:1px;color:var(--text);margin-bottom:.2rem}
+.member-handle{font-size:.75rem;color:var(--pk2);text-align:center;margin-bottom:.5rem;letter-spacing:1px}
+.member-bio{font-size:.78rem;color:var(--muted);text-align:center;line-height:1.5;margin-bottom:.75rem}
+.member-tags{display:flex;flex-wrap:wrap;gap:.3rem;justify-content:center}
+.tag{font-size:.62rem;padding:.15rem .5rem;border-radius:4px;background:rgba(123,31,162,0.15);border:1px solid rgba(123,31,162,0.3);color:var(--pu3);letter-spacing:1px;font-weight:600}
+.verified-badge{display:flex;align-items:center;justify-content:center;gap:.3rem;margin-top:.6rem;font-size:.65rem;color:#4ade80;letter-spacing:1.5px;font-weight:700}
+.v-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;box-shadow:0 0 6px #4ade80;flex-shrink:0}
+
+/* LAWYER GRID */
+.lawyer-list{display:grid;gap:1rem;margin-bottom:2.5rem}
+.lawyer-card{background:rgba(255,255,255,0.03);border:1px solid rgba(123,31,162,0.3);border-radius:16px;padding:1.25rem;transition:.3s;position:relative;overflow:hidden}
+.lawyer-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--pu2),var(--pk),transparent)}
+.lawyer-card:hover{border-color:rgba(224,23,122,0.5);background:rgba(224,23,122,0.05)}
+.lawyer-top{display:flex;align-items:flex-start;gap:1rem;margin-bottom:.9rem}
+.l-avatar{width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700;color:#fff;flex-shrink:0}
+.l-meta{flex:1;min-width:0}
+.l-name{font-family:'Orbitron',monospace;font-size:.85rem;font-weight:700;letter-spacing:1px;color:var(--text);margin-bottom:.2rem}
+.l-title{font-size:.78rem;color:var(--pk2);letter-spacing:1px;margin-bottom:.3rem;font-weight:600}
+.l-college{font-size:.75rem;color:var(--muted)}
+.stars-row{display:flex;align-items:center;gap:.4rem;margin-top:.25rem}
+.stars{display:flex;gap:1px}
+.star{font-size:13px;line-height:1}
+.star.on{color:#fbbf24}
+.star.off{color:var(--dim)}
+.rating-num{font-size:.8rem;font-weight:700;color:var(--pk2);font-family:'Orbitron',monospace}
+.total-rev{font-size:.72rem;color:var(--dim)}
+.l-quals{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.75rem}
+.qual{font-size:.65rem;padding:.2rem .55rem;border-radius:4px;background:rgba(224,23,122,0.1);border:1px solid rgba(224,23,122,0.25);color:var(--pk3);letter-spacing:.5px}
+.l-specialties{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.8rem}
+.spec{font-size:.65rem;padding:.2rem .55rem;border-radius:4px;background:rgba(123,31,162,0.12);border:1px solid rgba(123,31,162,0.28);color:var(--pu3);letter-spacing:.5px}
+.reviews{border-top:1px solid rgba(224,23,122,0.15);padding-top:.75rem}
+.review-item{margin-bottom:.6rem}
+.review-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.2rem}
+.reviewer{font-size:.72rem;font-weight:700;color:var(--pu3)}
+.rev-date{font-size:.65rem;color:var(--dim)}
+.rev-text{font-size:.78rem;color:var(--muted);line-height:1.5}
+.rev-stars{display:flex;gap:1px}
+.rev-star{font-size:10px}
+
+/* FORM SECTION */
+.form-card{background:rgba(255,255,255,0.03);border:1px solid rgba(224,23,122,0.3);border-radius:18px;padding:1.5rem;max-width:580px;margin:0 auto;position:relative;overflow:hidden}
+.form-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--pk),var(--pu2),transparent)}
+.form-title{font-family:'Orbitron',monospace;font-size:.9rem;letter-spacing:3px;color:var(--text);margin-bottom:1.2rem;text-transform:uppercase;text-align:center}
+.form-row{margin-bottom:1rem}
+.form-label{font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:700;display:block;margin-bottom:.35rem}
+.form-input{width:100%;padding:.65rem 1rem;background:rgba(255,255,255,0.04);border:1px solid rgba(224,23,122,0.2);border-radius:8px;color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.9rem;outline:none;transition:.2s}
+.form-input:focus{border-color:rgba(224,23,122,0.6);background:rgba(224,23,122,0.06)}
+.form-input::placeholder{color:var(--dim)}
+textarea.form-input{resize:vertical;min-height:80px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.aadhaar-note{display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;background:rgba(74,222,128,0.07);border:1px solid rgba(74,222,128,0.25);border-radius:8px;font-size:.72rem;color:#4ade80;margin-bottom:1rem;letter-spacing:1px}
+.submit-btn{width:100%;padding:.9rem;background:linear-gradient(135deg,var(--pu),var(--pk));border:none;border-radius:10px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:.95rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;cursor:pointer;transition:.3s;box-shadow:0 0 20px rgba(224,23,122,0.3);margin-top:.5rem}
+.submit-btn:hover{box-shadow:0 0 35px rgba(224,23,122,0.55);transform:translateY(-1px)}
+.success-msg{display:none;text-align:center;padding:1rem;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.3);border-radius:10px;color:#4ade80;font-size:.85rem;letter-spacing:1px;margin-top:.75rem;font-weight:700}
+
+.hidden{display:none}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}.member-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.tabs{overflow-x:auto}.tab{white-space:nowrap}}
+</style>
+
+<div class="wrap">
+<div class="topbar">
+  <div class="logo">HECTATE</div>
+  <div style="display:flex;gap:.6rem;align-items:center">
+    <span class="top-badge">♀ Women's Directory</span>
+  </div>
+</div>
+
+<div style="padding:0 .5rem">
+<div class="tabs">
+  <button class="tab on" onclick="switchTab('members',this)">Member Profiles</button>
+  <button class="tab" onclick="switchTab('lawyers',this)">Criminal Lawyers</button>
+  <button class="tab" onclick="switchTab('register',this)">Create Profile</button>
+</div>
+
+<!-- MEMBERS TAB -->
+<div id="tab-members">
+  <div class="bar">
+    <div class="search-wrap">
+      <span class="search-icon">&#9740;</span>
+      <input type="text" placeholder="Search by name, handle, city..." id="memberSearch" oninput="filterMembers()">
+    </div>
+    <select class="filter-select" onchange="filterMembers()" id="cityFilter">
+      <option value="">All Cities</option>
+      <option>Mumbai</option><option>Delhi</option><option>Bengaluru</option>
+      <option>Chennai</option><option>Hyderabad</option><option>Kolkata</option>
+      <option>Jaipur</option><option>Pune</option>
+    </select>
+    <div class="stat-pills">
+      <span class="pill pill-pk" id="memberCount">12 members</span>
+      <span class="pill pill-pu">Aadhaar Verified</span>
+    </div>
+  </div>
+  <div class="sec-title">Verified Women Profiles</div>
+  <div class="member-grid" id="memberGrid"></div>
+</div>
+
+<!-- LAWYERS TAB -->
+<div id="tab-lawyers" class="hidden">
+  <div class="bar">
+    <div class="search-wrap">
+      <span class="search-icon">&#9740;</span>
+      <input type="text" placeholder="Search lawyer, college, specialty..." id="lawyerSearch" oninput="filterLawyers()">
+    </div>
+    <select class="filter-select" onchange="filterLawyers()" id="ratingFilter">
+      <option value="">All Ratings</option>
+      <option value="5">5 Stars</option>
+      <option value="4">4 Stars</option>
+      <option value="3">3 Stars</option>
+      <option value="2">2 Stars</option>
+      <option value="1">1 Star</option>
+    </select>
+    <select class="filter-select" onchange="filterLawyers()" id="specFilter">
+      <option value="">All Specialties</option>
+      <option>Cyber Crime</option><option>Domestic Violence</option><option>POCSO</option>
+      <option>Bail & Custody</option><option>White Collar</option><option>Homicide</option>
+    </select>
+    <div class="stat-pills">
+      <span class="pill pill-pk" id="lawyerCount">12 lawyers</span>
+    </div>
+  </div>
+  <div class="sec-title">Female Criminal Lawyers — India</div>
+  <div class="lawyer-list" id="lawyerGrid"></div>
+</div>
+
+<!-- REGISTER TAB -->
+<div id="tab-register" class="hidden">
+  <div class="form-card">
+    <div class="form-title">Create Your Profile</div>
+    <div class="aadhaar-note">
+      <span class="v-dot"></span>
+      Aadhaar verification completed — your gender is confirmed
+    </div>
+    <div class="form-row">
+      <label class="form-label">Profile Name</label>
+      <input class="form-input" type="text" placeholder="e.g. Priya Sharma" id="reg-name">
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label class="form-label">Username / Handle</label>
+        <input class="form-input" type="text" placeholder="@priya.s" id="reg-handle">
+      </div>
+      <div class="form-row">
+        <label class="form-label">City</label>
+        <input class="form-input" type="text" placeholder="Mumbai" id="reg-city">
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Bio (max 120 chars)</label>
+      <textarea class="form-input" placeholder="Tell your story — like your Instagram bio..." id="reg-bio" maxlength="120"></textarea>
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label class="form-label">Interests / Tags</label>
+        <input class="form-input" type="text" placeholder="law, art, fitness" id="reg-tags">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Aadhaar Ref. ID</label>
+        <input class="form-input" type="text" placeholder="XXXX-XXXX-5432" id="reg-aadhar" readonly style="opacity:.6;cursor:not-allowed">
+      </div>
+    </div>
+    <button class="submit-btn" onclick="registerProfile()">Save Profile</button>
+    <div class="success-msg" id="regSuccess">Profile created successfully! Find yourself in Member Profiles.</div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+const AVATAR_COLORS=[
+  ['#7b1fa2','#e91e8c'],['#6a1b9a','#d81b60'],['#4a148c','#c2185b'],
+  ['#880e4f','#ad1457'],['#4527a0','#7b1fa2'],['#1a237e','#c2185b'],
+  ['#311b92','#e91e8c'],['#512da8','#d81b60'],['#283593','#c62828'],
+  ['#1b5e20','#7b1fa2'],['#004d40','#c2185b'],['#bf360c','#8e24aa']
+];
+
+const members=[
+  {name:'Ananya Sharma',handle:'@ananya.s',city:'Mumbai',bio:'Feminist. Reader. Coffee addict. Breaking barriers one case at a time.',tags:['law','books','coffee'],aadhar:'XXXX-XXXX-1201'},
+  {name:'Priya Mehra',handle:'@priya.m',city:'Delhi',bio:'Artist & activist. Documenting womens stories through photography.',tags:['art','photography','activism'],aadhar:'XXXX-XXXX-3347'},
+  {name:'Kavya Nair',handle:'@kavya.n',city:'Bengaluru',bio:'Tech founder. Building safe digital spaces for women.',tags:['tech','startup','safety'],aadhar:'XXXX-XXXX-5512'},
+  {name:'Deepika Joshi',handle:'@deepika.j',city:'Jaipur',bio:'Dancer. Lawyer in training. Chai over everything.',tags:['dance','law','chai'],aadhar:'XXXX-XXXX-7823'},
+  {name:'Riya Kapoor',handle:'@riya.k',city:'Pune',bio:'Data scientist by day. Poet by night. Zero tolerance for injustice.',tags:['data','poetry','justice'],aadhar:'XXXX-XXXX-9034'},
+  {name:'Sonal Gupta',handle:'@sonal.g',city:'Hyderabad',bio:'Doctor. Marathoner. Loves mountains and monsoons.',tags:['medicine','running','travel'],aadhar:'XXXX-XXXX-2265'},
+  {name:'Meena Pillai',handle:'@meena.p',city:'Chennai',bio:'Environmental lawyer. Plant mom. Future is female and green.',tags:['environment','law','plants'],aadhar:'XXXX-XXXX-4476'},
+  {name:'Tanvi Singh',handle:'@tanvi.s',city:'Kolkata',bio:'Journalist. Asking questions they don\'t want answered.',tags:['journalism','writing','truth'],aadhar:'XXXX-XXXX-6687'},
+  {name:'Aisha Khan',handle:'@aisha.k',city:'Mumbai',bio:'Fashion designer. Body positivity advocate. Living boldly.',tags:['fashion','design','body+'],aadhar:'XXXX-XXXX-8898'},
+  {name:'Pooja Verma',handle:'@pooja.v',city:'Delhi',bio:'Social worker. 10 years in child rights. Still going.',tags:['social','child-rights','NGO'],aadhar:'XXXX-XXXX-1109'},
+  {name:'Lalitha Reddy',handle:'@lalitha.r',city:'Bengaluru',bio:'Software engineer. Hiking trails on weekends. Code is poetry.',tags:['tech','hiking','code'],aadhar:'XXXX-XXXX-3320'},
+  {name:'Shruti Desai',handle:'@shruti.d',city:'Pune',bio:'Nutritionist. Mindfulness coach. Food is medicine.',tags:['health','nutrition','wellness'],aadhar:'XXXX-XXXX-5531'}
+];
+
+const LAWYERS=[
+  {name:'Adv. Rohini Deshmukh',title:'Senior Criminal Advocate',college:'National Law School of India University, Bengaluru',quals:['LLB','LLM Criminal Law','Bar Council of India'],specs:['Cyber Crime','Domestic Violence','POCSO'],rating:5,totalReviews:142,
+   reviews:[{user:'Riya K.',stars:5,date:'Mar 2025',text:'Exceptional command of courtroom. Won my cyber harassment case in record time.'},
+            {user:'Smita L.',stars:5,date:'Jan 2025',text:'Most thorough legal mind I have encountered. Highly recommend for POCSO matters.'}]},
+  {name:'Adv. Meenakshi Iyer',title:'Criminal Defense Specialist',college:'Faculty of Law, Delhi University',quals:['LLB','LLM','PhD Law'],specs:['Bail & Custody','Homicide','White Collar'],rating:5,totalReviews:98,
+   reviews:[{user:'Kavya N.',stars:5,date:'Apr 2025',text:'Got my sister bail within 48 hours. Professional, empathetic, brilliant.'},
+            {user:'Pooja V.',stars:5,date:'Feb 2025',text:'Handled a very complex homicide defense with grace and precision.'}]},
+  {name:'Adv. Sushma Bakshi',title:'Public Prosecutor, High Court',college:'Symbiosis Law School, Pune',quals:['LLB','LLM','Diploma in Criminology'],specs:['Domestic Violence','POCSO','Bail & Custody'],rating:4,totalReviews:211,
+   reviews:[{user:'Ananya S.',stars:4,date:'Mar 2025',text:'Very thorough and empathetic. Helped navigate a complex DV case.'},
+            {user:'Tanvi S.',stars:4,date:'Dec 2024',text:'Excellent preparation. Slightly delayed on responses but ultimately delivered.'}]},
+  {name:'Adv. Parveen Sultana',title:'Criminal Rights Advocate',college:'Jamia Millia Islamia, Delhi',quals:['LLB','LLM Human Rights'],specs:['Cyber Crime','White Collar','Homicide'],rating:4,totalReviews:77,
+   reviews:[{user:'Meena P.',stars:5,date:'Feb 2025',text:'Fought a white collar fraud case for 2 years and won. Never gave up.'},
+            {user:'Lalitha R.',stars:3,date:'Nov 2024',text:'Good expertise, communication could be more timely.'}]},
+  {name:'Adv. Geetanjali Sharma',title:'Criminal Advocate',college:'Rajasthan University, Jaipur',quals:['LLB','Certificate in Cyber Law'],specs:['Cyber Crime','Domestic Violence'],rating:3,totalReviews:54,
+   reviews:[{user:'Deepika J.',stars:3,date:'Jan 2025',text:'Average representation. Got the job done but lacked aggressive advocacy.'},
+            {user:'Riya K.',stars:3,date:'Oct 2024',text:'Decent knowledge. Not the best in courtroom performance.'}]},
+  {name:'Adv. Vasundhara Pillai',title:'Defense Lawyer',college:'Kerala Law Academy, Thiruvananthapuram',quals:['LLB','LLM'],specs:['Bail & Custody','POCSO','Homicide'],rating:3,totalReviews:88,
+   reviews:[{user:'Sonal G.',stars:4,date:'Mar 2025',text:'Handled bail application efficiently. Good understanding of procedural law.'},
+            {user:'Aisha K.',stars:2,date:'Jan 2025',text:'Expected more. Did not challenge the prosecution forcefully enough.'}]},
+  {name:'Adv. Laxmi Choudhary',title:'Advocate & Legal Consultant',college:'Gujarat National Law University, Gandhinagar',quals:['LLB','LLM','MBA Legal'],specs:['White Collar','Cyber Crime','Bail & Custody'],rating:2,totalReviews:31,
+   reviews:[{user:'Shruti D.',stars:2,date:'Feb 2025',text:'Did not adequately prepare for cross-examination. Disappointing experience.'},
+            {user:'Pooja V.',stars:2,date:'Dec 2024',text:'Missed key evidence that could have helped our case. Not recommended.'}]},
+  {name:'Adv. Kalpana Rao',title:'Junior Criminal Advocate',college:'Osmania University, Hyderabad',quals:['LLB'],specs:['Domestic Violence','Bail & Custody'],rating:2,totalReviews:19,
+   reviews:[{user:'Meena P.',stars:2,date:'Jan 2025',text:'Very new to practice. Needs significant mentoring before handling complex cases.'},
+            {user:'Kavya N.',stars:2,date:'Nov 2024',text:'Case was delayed due to inadequate procedural knowledge.'}]},
+  {name:'Adv. Taramati Hegde',title:'Criminal Advocate',college:'Karnataka State Law University, Hubli',quals:['LLB','Diploma in Criminology'],specs:['Homicide','POCSO'],rating:1,totalReviews:8,
+   reviews:[{user:'Tanvi S.',stars:1,date:'Mar 2025',text:'Showed up unprepared. Did not know the relevant sections. Very disappointing.'},
+            {user:'Ananya S.',stars:1,date:'Feb 2025',text:'Worst experience. Lost a winnable case due to negligence.'}]},
+  {name:'Adv. Bindiya Tomar',title:'Legal Aid Advocate',college:'Chaudhary Charan Singh University, Meerut',quals:['LLB'],specs:['White Collar','Cyber Crime'],rating:1,totalReviews:12,
+   reviews:[{user:'Priya M.',stars:1,date:'Jan 2025',text:'Did not file documents on time. Case suffered significantly. Avoid.'},
+            {user:'Riya K.',stars:2,date:'Dec 2024',text:'Communication completely broke down midway through the case.'}]},
+  {name:'Adv. Nirmala Bansal',title:'Criminal Defense Attorney',college:'Panjab University, Chandigarh',quals:['LLB','LLM','Certificate in Forensics'],specs:['Homicide','Domestic Violence','POCSO'],rating:5,totalReviews:176,
+   reviews:[{user:'Lalitha R.',stars:5,date:'Apr 2025',text:'Absolute powerhouse. Cross-examined witnesses flawlessly. Case won.'},
+            {user:'Shruti D.',stars:5,date:'Mar 2025',text:'Has a gift for reading judges. Brilliant strategic mind.'}]},
+  {name:'Adv. Chameli Saxena',title:'High Court Criminal Advocate',college:'Banaras Hindu University, Varanasi',quals:['LLB','LLM','PhD Criminology'],specs:['Cyber Crime','Bail & Custody','White Collar'],rating:4,totalReviews:133,
+   reviews:[{user:'Deepika J.',stars:4,date:'Feb 2025',text:'Secured bail in a seemingly impossible situation. Very sharp.'},
+            {user:'Sonal G.',stars:4,date:'Jan 2025',text:'Thorough understanding of cyber crime provisions. Would hire again.'}]}
+];
+
+const avatarBg=(i)=>`background:linear-gradient(135deg,${AVATAR_COLORS[i%AVATAR_COLORS.length][0]},${AVATAR_COLORS[i%AVATAR_COLORS.length][1]})`;
+const initials=(name)=>name.replace('Adv. ','').split(' ').slice(0,2).map(w=>w[0]).join('');
+const stars=(r,total)=>{let s='';for(let i=1;i<=5;i++)s+=`<span class="star ${i<=r?'on':'off'}">&#9733;</span>`;return s;};
+const miniStars=(r)=>{let s='';for(let i=1;i<=5;i++)s+=`<span class="rev-star ${i<=r?'on':'off'}" style="color:${i<=r?'#fbbf24':'#6a4f7a'}">&#9733;</span>`;return s;};
+
+function renderMembers(list){
+  const g=document.getElementById('memberGrid');
+  document.getElementById('memberCount').textContent=list.length+' members';
+  g.innerHTML=list.map((m,i)=>`
+  <div class="member-card">
+    <div class="member-avatar" style="${avatarBg(i)}">${initials(m.name)}</div>
+    <div class="member-name">${m.name}</div>
+    <div class="member-handle">${m.handle}</div>
+    <div class="member-bio">${m.bio}</div>
+    <div class="member-tags">${m.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+    <div class="member-tags" style="margin-top:.35rem"><span class="tag" style="background:rgba(74,222,128,0.08);border-color:rgba(74,222,128,0.25);color:#4ade80">${m.city}</span></div>
+    <div class="verified-badge"><span class="v-dot"></span>Aadhaar Verified</div>
+  </div>`).join('');
+}
+
+function filterMembers(){
+  const q=document.getElementById('memberSearch').value.toLowerCase();
+  const city=document.getElementById('cityFilter').value;
+  renderMembers(members.filter(m=>
+    (!q||(m.name+m.handle+m.bio+m.tags.join(' ')).toLowerCase().includes(q))&&
+    (!city||m.city===city)
+  ));
+}
+
+function renderLawyers(list){
+  const g=document.getElementById('lawyerGrid');
+  document.getElementById('lawyerCount').textContent=list.length+' lawyers';
+  g.innerHTML=list.map((l,i)=>`
+  <div class="lawyer-card">
+    <div class="lawyer-top">
+      <div class="l-avatar" style="${avatarBg(i+3)};border-radius:12px">${initials(l.name)}</div>
+      <div class="l-meta">
+        <div class="l-name">${l.name}</div>
+        <div class="l-title">${l.title}</div>
+        <div class="l-college">${l.college}</div>
+        <div class="stars-row"><div class="stars">${stars(l.rating)}</div><span class="rating-num">${l.rating}.0</span><span class="total-rev">(${l.totalReviews} reviews)</span></div>
+      </div>
+    </div>
+    <div class="l-quals">${l.quals.map(q=>`<span class="qual">${q}</span>`).join('')}</div>
+    <div class="l-specialties">${l.specs.map(s=>`<span class="spec">${s}</span>`).join('')}</div>
+    <div class="reviews">${l.reviews.map(r=>`
+      <div class="review-item">
+        <div class="review-header">
+          <div style="display:flex;align-items:center;gap:.4rem"><span class="reviewer">${r.user}</span><div class="rev-stars">${miniStars(r.stars)}</div></div>
+          <span class="rev-date">${r.date}</span>
+        </div>
+        <div class="rev-text">${r.text}</div>
+      </div>`).join('')}</div>
+  </div>`).join('');
+}
+
+function filterLawyers(){
+  const q=document.getElementById('lawyerSearch').value.toLowerCase();
+  const rating=document.getElementById('ratingFilter').value;
+  const spec=document.getElementById('specFilter').value;
+  renderLawyers(LAWYERS.filter(l=>
+    (!q||(l.name+l.college+l.specs.join(' ')+l.quals.join(' ')).toLowerCase().includes(q))&&
+    (!rating||l.rating===parseInt(rating))&&
+    (!spec||l.specs.includes(spec))
+  ));
+}
+
+function switchTab(name,el){
+  ['members','lawyers','register'].forEach(t=>{
+    document.getElementById('tab-'+t).classList.toggle('hidden',t!==name);
+  });
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+}
+
+function registerProfile(){
+  const name=document.getElementById('reg-name').value.trim();
+  const handle=document.getElementById('reg-handle').value.trim();
+  const city=document.getElementById('reg-city').value.trim();
+  const bio=document.getElementById('reg-bio').value.trim();
+  const tags=document.getElementById('reg-tags').value.trim();
+  if(!name||!handle||!bio){alert('Please fill in name, handle, and bio.');return;}
+  const newMember={name,handle:handle.startsWith('@')?handle:'@'+handle,city:city||'India',bio,tags:tags?tags.split(',').map(t=>t.trim()).filter(Boolean):['hectate'],aadhar:'XXXX-XXXX-'+Math.floor(1000+Math.random()*9000)};
+  members.push(newMember);
+  document.getElementById('regSuccess').style.display='block';
+  document.getElementById('reg-name').value='';
+  document.getElementById('reg-handle').value='';
+  document.getElementById('reg-city').value='';
+  document.getElementById('reg-bio').value='';
+  document.getElementById('reg-tags').value='';
+  setTimeout(()=>{document.getElementById('regSuccess').style.display='none';},3500);
+}
+
+document.getElementById('reg-aadhar').value='XXXX-XXXX-'+Math.floor(1000+Math.random()*9000);
+renderMembers(members);
+renderLawyers(LAWYERS);
+</script>
