@@ -778,23 +778,59 @@ function MatchingStep({ selfieB64, aadhaarFaceB64, onPass }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // STEP 3 — Profile Setup
 // ══════════════════════════════════════════════════════════════════════════════
+// ── ProfileField: DEFINED OUTSIDE ProfileSetupStep to prevent unmount-on-rerender ──
+const psFieldStyle = { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }
+const psLabelStyle = { fontSize: 12, fontWeight: 700, color: '#475569', letterSpacing: 0.3 }
+const psHintStyle  = { fontSize: 10, color: '#94a3b8', marginTop: 3 }
+const psErrStyle   = { fontSize: 11, color: '#dc2626', marginTop: 2 }
+
+function ProfileField({ id, label, hint, err, children }) {
+  return (
+    <div style={psFieldStyle}>
+      <label htmlFor={id} style={psLabelStyle}>{label}</label>
+      {children}
+      {hint && <span style={psHintStyle}>{hint}</span>}
+      {err  && <span style={psErrStyle}>{err}</span>}
+    </div>
+  )
+}
+
+const psInputBase = {
+  width: '100%', padding: '13px 14px', borderRadius: 10,
+  border: '1.5px solid #d1d5db', background: '#f9f9fb',
+  fontSize: 14, color: '#1e293b', outline: 'none',
+  fontFamily: 'Outfit, sans-serif',
+  transition: 'border 0.2s, box-shadow 0.2s', boxSizing: 'border-box'
+}
+const psInputErr  = { ...psInputBase, border: '1.5px solid #dc2626', background: '#fff5f5' }
+const psInputPr   = (pr) => ({ ...psInputBase, paddingRight: pr })
+const psInputErrPr = (pr) => ({ ...psInputErr, paddingRight: pr })
+
+// ── ─────────────────────────────────────────────────────────────────────── ──
+
 function ProfileSetupStep({ onPass, formData, setFormData, loading }) {
-  const [errors, setErrors]   = useState({})
-  const [preview, setPreview] = useState(formData.avatarUrl || null)
-  const [showPw, setShowPw]   = useState(false)
-  const inputRef = useRef(null)
+  const [errors,  setErrors]     = useState({})
+  const [preview, setPreview]    = useState(formData.avatarUrl || null)
+  const [showPw,  setShowPw]     = useState(false)
+  const [showCpw, setShowCpw]    = useState(false)
+  const [confirmPw, setConfirmPw] = useState('')
+  const fileInputRef = useRef(null)
 
   const validate = () => {
     const e = {}
-    if (!formData.name)         e.name         = 'Full name is required'
-    if (!formData.alias)        e.alias        = 'Safety alias is required'
+    if (!formData.name)  e.name = 'Full name is required'
+    if (!formData.alias) e.alias = 'Safety alias is required'
     if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email))
-                                e.email        = 'Valid email is required'
+                         e.email = 'Valid email is required'
     const cleanPhone = (formData.mobileNumber || '').replace(/\D/g, '')
     if (cleanPhone.length !== 10) e.mobileNumber = 'Must be exactly 10 digits'
     const pwRe = /^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/
     if (!formData.password || !pwRe.test(formData.password))
-                                e.password     = 'Use 8+ chars, with a number & symbol'
+      e.password = 'Use 8+ chars, with a number & symbol'
+    if (!confirmPw)
+      e.confirmPw = 'Please confirm your password'
+    else if (formData.password !== confirmPw)
+      e.confirmPw = 'Passwords do not match'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -803,87 +839,37 @@ function ProfileSetupStep({ onPass, formData, setFormData, loading }) {
     if (!f) return
     if (f.size > 2 * 1024 * 1024) { alert('Photo must be under 2 MB'); return }
     const reader = new FileReader()
-    reader.onloadend = () => { setPreview(reader.result); setFormData({ ...formData, avatarUrl: reader.result }) }
+    reader.onloadend = () => {
+      setPreview(reader.result)
+      setFormData(prev => ({ ...prev, avatarUrl: reader.result }))
+    }
     reader.readAsDataURL(f)
   }
 
-  /* ── Inline styles for single-column Instagram-style card ── */
-  const S = {
-    page: {
-      minHeight: '100vh', background: '#f2f3f5',
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-      padding: '40px 16px 60px'
-    },
-    card: {
-      width: '100%', maxWidth: 420, background: '#fff',
-      borderRadius: 20, boxShadow: '0 4px 32px rgba(0,0,0,0.08)',
-      padding: '36px 32px 32px', display: 'flex', flexDirection: 'column', gap: 0
-    },
-    pageTitle: {
-      fontSize: 22, fontWeight: 800, color: '#1e293b',
-      textAlign: 'center', marginBottom: 4, fontFamily: 'Playfair Display, serif'
-    },
-    pageSubtitle: { fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 28 },
-    avatarWrap: { display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28 },
-    avatar: {
-      width: 96, height: 96, borderRadius: '50%',
-      background: '#f1f5f9', border: '3px solid #fff',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      cursor: 'pointer', overflow: 'hidden', transition: 'transform 0.2s'
-    },
-    addPhotoLabel: { fontSize: 11, fontWeight: 800, color: '#EC1C6E', marginTop: 8, letterSpacing: 0.5 },
-    fieldWrap: { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 },
-    label: { fontSize: 12, fontWeight: 700, color: '#475569', letterSpacing: 0.3 },
-    input: {
-      width: '100%', padding: '13px 14px', borderRadius: 10,
-      border: '1.5px solid #d1d5db', background: '#f9f9fb',
-      fontSize: 14, color: '#1e293b', outline: 'none', transition: 'border 0.2s, box-shadow 0.2s',
-      boxSizing: 'border-box'
-    },
-    inputErr: { border: '1.5px solid #dc2626', background: '#fff5f5' },
-    errText: { fontSize: 11, color: '#dc2626', marginTop: 2 },
-    hint: { fontSize: 10, color: '#94a3b8', marginTop: 3 },
-    relWrap: { position: 'relative' },
-    pwToggle: {
-      position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-      background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#94a3b8'
-    },
-    cta: {
-      width: '100%', padding: '15px', borderRadius: 14, border: 'none',
-      background: 'linear-gradient(135deg,#EC1C6E,#ff4d94)',
-      color: '#fff', fontWeight: 800, fontSize: 15, letterSpacing: 0.5,
-      cursor: 'pointer', marginTop: 10,
-      boxShadow: '0 8px 24px rgba(236,28,110,0.30)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
-    },
-    ctaDisabled: { opacity: 0.7, cursor: 'not-allowed' },
-    policy: { fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 12 }
+  const relWrap  = { position: 'relative' }
+  const pwToggle = {
+    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+    background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#94a3b8',
+    display: 'flex', alignItems: 'center'
   }
 
-  const Field = ({ id, label, hint, err, children }) => (
-    <div style={S.fieldWrap}>
-      <label htmlFor={id} style={S.label}>{label}</label>
-      {children}
-      {hint  && <span style={S.hint}>{hint}</span>}
-      {err   && <span style={S.errText}>{err}</span>}
-    </div>
-  )
-
-  const inp = (extra = {}) => ({ ...S.input, ...extra })
-
   return (
-    <div style={S.page}>
-      <div style={S.card}>
-        {/* Title */}
-        <h2 style={S.pageTitle}>Setup Your Profile</h2>
-        <p style={S.pageSubtitle}>Identity verified. Now, create your digital self.</p>
+    <div style={{ minHeight: '100vh', background: '#f2f3f5', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px 60px' }}>
+      <div style={{ width: '100%', maxWidth: 420, background: '#fff', borderRadius: 20, boxShadow: '0 4px 32px rgba(0,0,0,0.08)', padding: '36px 32px 32px', display: 'flex', flexDirection: 'column' }}>
 
-        {/* Avatar picker — centered */}
-        <div style={S.avatarWrap}>
+        {/* Title */}
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: '#1e293b', textAlign: 'center', marginBottom: 4, fontFamily: 'Playfair Display, serif' }}>
+          Setup Your Profile
+        </h2>
+        <p style={{ fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 28, margin: '0 0 28px' }}>
+          Identity verified. Now, create your digital self.
+        </p>
+
+        {/* Avatar */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28 }}>
           <div
-            style={S.avatar}
-            onClick={() => inputRef.current?.click()}
+            style={{ width: 96, height: 96, borderRadius: '50%', background: '#f1f5f9', border: '3px solid #fff', boxShadow: '0 4px 16px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', transition: 'transform 0.2s' }}
+            onClick={() => fileInputRef.current?.click()}
             onMouseOver={e => e.currentTarget.style.transform = 'scale(1.06)'}
             onMouseOut={e  => e.currentTarget.style.transform = 'scale(1)'}
           >
@@ -892,74 +878,111 @@ function ProfileSetupStep({ onPass, formData, setFormData, loading }) {
               : <Camera size={28} color="#EC1C6E" opacity={0.7} />
             }
           </div>
-          <span style={S.addPhotoLabel}>ADD PHOTO</span>
-          <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#EC1C6E', marginTop: 8, letterSpacing: 0.5 }}>ADD PHOTO</span>
+          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
         </div>
 
         {/* Full Name */}
-        <Field id="ps-name" label="Full Name" err={errors.name}>
+        <ProfileField id="ps-name" label="Full Name" err={errors.name}>
           <input
-            id="ps-name" style={inp(errors.name ? S.inputErr : {})}
+            id="ps-name"
+            style={errors.name ? psInputErr : psInputBase}
             placeholder="Legal Name"
             value={formData.name}
-            onChange={e => setFormData({ ...formData, name: e.target.value })}
+            onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
           />
-        </Field>
+        </ProfileField>
 
         {/* Safety Alias */}
-        <Field id="ps-alias" label="Safety Alias" err={errors.alias}>
+        <ProfileField id="ps-alias" label="Safety Alias" err={errors.alias}>
           <input
-            id="ps-alias" style={inp(errors.alias ? S.inputErr : {})}
+            id="ps-alias"
+            style={errors.alias ? psInputErr : psInputBase}
             placeholder="@your_alias"
             value={formData.alias}
-            onChange={e => setFormData({ ...formData, alias: e.target.value })}
+            onChange={e => setFormData(prev => ({ ...prev, alias: e.target.value }))}
           />
-        </Field>
+        </ProfileField>
 
         {/* Email */}
-        <Field id="ps-email" label="Email Address" err={errors.email}>
+        <ProfileField id="ps-email" label="Email Address" err={errors.email}>
           <input
-            id="ps-email" type="email" style={inp(errors.email ? S.inputErr : {})}
+            id="ps-email"
+            type="email"
+            style={errors.email ? psInputErr : psInputBase}
             placeholder="your@email.com"
             value={formData.email}
-            onChange={e => setFormData({ ...formData, email: e.target.value })}
+            onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
           />
-        </Field>
+        </ProfileField>
 
         {/* Mobile */}
-        <Field id="ps-mobile" label="Mobile Number" err={errors.mobileNumber}>
-          <div style={S.relWrap}>
+        <ProfileField id="ps-mobile" label="Mobile Number" err={errors.mobileNumber}>
+          <div style={relWrap}>
             <input
-              id="ps-mobile" style={inp({ ...( errors.mobileNumber ? S.inputErr : {}), paddingRight: 36 })}
+              id="ps-mobile"
+              style={errors.mobileNumber ? psInputErrPr(40) : psInputPr(40)}
               placeholder="10-digit number"
-              value={formData.mobileNumber} maxLength={10}
-              onChange={e => setFormData({ ...formData, mobileNumber: e.target.value.replace(/\D/g, '') })}
+              value={formData.mobileNumber}
+              maxLength={10}
+              onChange={e => setFormData(prev => ({ ...prev, mobileNumber: e.target.value.replace(/\D/g, '') }))}
             />
-            {formData.mobileNumber.length === 10 && (
+            {(formData.mobileNumber || '').length === 10 && (
               <Check size={14} color="#16a34a" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }} />
             )}
           </div>
-        </Field>
+        </ProfileField>
 
         {/* Password */}
-        <Field id="ps-pw" label="Secure Password" hint="8+ chars, 1 number, 1 symbol" err={errors.password}>
-          <div style={S.relWrap}>
+        <ProfileField id="ps-pw" label="Password" hint="8+ chars, 1 number, 1 symbol" err={errors.password}>
+          <div style={relWrap}>
             <input
-              id="ps-pw" type={showPw ? 'text' : 'password'}
-              style={inp({ ...(errors.password ? S.inputErr : {}), paddingRight: 40 })}
+              id="ps-pw"
+              type={showPw ? 'text' : 'password'}
+              style={errors.password ? psInputErrPr(40) : psInputPr(40)}
               placeholder="••••••••"
               value={formData.password}
-              onChange={e => setFormData({ ...formData, password: e.target.value })}
+              onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
             />
-            <button style={S.pwToggle} tabIndex={-1} onClick={() => setShowPw(v => !v)} aria-label="Toggle password">
+            <button style={pwToggle} tabIndex={-1} onClick={() => setShowPw(v => !v)} aria-label="Toggle password">
               {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
           </div>
-        </Field>
+        </ProfileField>
+
+        {/* Confirm Password */}
+        <ProfileField id="ps-cpw" label="Confirm Password" err={errors.confirmPw}>
+          <div style={relWrap}>
+            <input
+              id="ps-cpw"
+              type={showCpw ? 'text' : 'password'}
+              style={errors.confirmPw ? psInputErrPr(40) : psInputPr(40)}
+              placeholder="Re-enter password"
+              value={confirmPw}
+              onChange={e => setConfirmPw(e.target.value)}
+            />
+            <button style={pwToggle} tabIndex={-1} onClick={() => setShowCpw(v => !v)} aria-label="Toggle confirm password">
+              {showCpw ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+          {/* Live match indicator */}
+          {confirmPw && formData.password && confirmPw === formData.password && (
+            <span style={{ fontSize: 11, color: '#16a34a', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Check size={11} /> Passwords match
+            </span>
+          )}
+        </ProfileField>
 
         {/* CTA */}
         <button
-          style={loading ? { ...S.cta, ...S.ctaDisabled } : S.cta}
+          style={{
+            width: '100%', padding: '15px', borderRadius: 14, border: 'none',
+            background: loading ? '#f1a1bd' : 'linear-gradient(135deg,#EC1C6E,#ff4d94)',
+            color: '#fff', fontWeight: 800, fontSize: 15, letterSpacing: 0.5,
+            cursor: loading ? 'not-allowed' : 'pointer', marginTop: 10,
+            boxShadow: '0 8px 24px rgba(236,28,110,0.28)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+          }}
           disabled={loading}
           onClick={() => validate() && onPass()}
         >
@@ -969,8 +992,9 @@ function ProfileSetupStep({ onPass, formData, setFormData, loading }) {
           }
         </button>
 
-        {/* Safety policy disclaimer */}
-        <p style={S.policy}>🔒 Strict Safety Policy: One Aadhaar, One Person.</p>
+        <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 14 }}>
+          🔒 Strict Safety Policy: One Aadhaar, One Person.
+        </p>
       </div>
     </div>
   )
