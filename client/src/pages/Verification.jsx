@@ -1,8 +1,43 @@
-import { useState, useRef, useEffect, useCallback, useContext } from 'react'
+﻿import { useState, useRef, useEffect, useCallback, useContext, useMemo } from 'react'
 import { AuthContext } from '../store/AuthContext'
-import { Shield, Upload, Check, X, Loader, FileText, Users, Camera, Lock, AlertCircle, Sun, ArrowRight } from 'lucide-react'
+import { Shield, Upload, Check, X, Loader, FileText, Users, Camera, Lock, AlertCircle, Sun, ArrowRight, RefreshCw, Smartphone, Eye, EyeOff } from 'lucide-react'
+import * as faceapi from 'face-api.js'
 
 const API = '/api'
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+// Calculate average brightness from a canvas
+const calculateBrightness = (canvas) => {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  let colorSum = 0;
+
+  // Sample every 8th pixel for brightness (faster)
+  for (let x = 0, len = data.length; x < len; x += 32) {
+    const avg = (data[x] + data[x + 1] + data[x + 2]) / 3;
+    colorSum += avg;
+  }
+
+  return Math.floor(colorSum / (data.length / 32));
+};
+
+// Robust fetch with retry
+const fetchWithRetry = async (url, options, retries = 3, backoff = 1000) => {
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok && retries > 0 && response.status !== 403 && response.status !== 401) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response;
+  } catch (error) {
+    if (retries === 0) throw error;
+    console.warn(`[RETRY] Fetch failed, retrying in ${backoff}ms...`, error.message);
+    await new Promise(resolve => setTimeout(resolve, backoff));
+    return fetchWithRetry(url, options, retries - 1, backoff * 1.5);
+  }
+};
 
 // ── Helper: fetch CSRF token with caching ─────────────────────────────────────
 let cachedCsrf = null;
@@ -27,155 +62,597 @@ async function getCsrf(forceRefresh = false) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// STEP 2 — Aadhaar OCR Upload
+// STEP 1 — Live Selfie & Liveness
 // ══════════════════════════════════════════════════════════════════════════════
-function AadhaarStep({ onPass }) {
-  const [file, setFile]         = useState(null)
-  const [preview, setPreview]   = useState(null)
-  const [loading, setLoading]   = useState(false)
-  const [result, setResult]     = useState(null)
-  const [dragging, setDragging] = useState(false)
-  const inputRef = useRef(null)
+function LivenessStep({ onPass, serviceStatus }) {
+  const videoRef = useRef(null)
+  const canvasRef = useRef(null)
+  const overlayRef = useRef(null)
+  const framesRef = useRef([])
+  const requestRef = useRef(null)
+  const lastProcessedTime = useRef(0)
 
-  const handleFile = (f) => {
-    if (!f) return
-    setFile(f)
-    setResult(null)
-    if (f.type.startsWith('image/')) {
-      setPreview(URL.createObjectURL(f))
-    } else if (f.type === 'application/pdf') {
-      setPreview('pdf-icon') 
+  const [modelsLoaded, setModelsLoaded] = useState(false)
+  const [cameraAccess, setCameraAccess] = useState(false)
+  const [phase, setPhase] = useState('camera') // camera|capturing|processing|failed|passed
+  const [error, setError] = useState(null)
+  const [feedback, setFeedback] = useState({ msg: 'Initializing camera...', type: 'info' })
+  const [brightness, setBrightness] = useState(100)
+  const [progress, setProgress] = useState(0)
+  const [isStable, setIsStable] = useState(false)
+  const [movementPassed, setMovementPassed] = useState(false)
+  const [stabilityScore, setStabilityScore] = useState(0)
+  
+  const faceStartTimeRef = useRef(null)
+  const stableFramesRef = useRef(0)
+  const lastFaceBoxRef = useRef(null)
+  const lastFaceDetectedTimeRef = useRef(Date.now())
+  const initialFacePosRef = useRef(null)
+  const movementHistoryRef = useRef([])
+  const isStableRef = useRef(false)
+  const movementPassedRef = useRef(false)
+  const phaseRef = useRef('camera')
+
+
+
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/'
+  const TOTAL_FRAMES = 12
+
+  // Keep refs in sync with state for rAF closure
+  useEffect(() => { isStableRef.current = isStable }, [isStable])
+  useEffect(() => { movementPassedRef.current = movementPassed }, [movementPassed])
+  useEffect(() => { phaseRef.current = phase }, [phase])
+
+
+  // 1. Load Models
+  useEffect(() => {
+    async function loadModels() {
+      try {
+        setFeedback({ msg: 'Loading AI models...', type: 'info' })
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)
+        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
+        setModelsLoaded(true)
+        console.log('[FACE_API] Models loaded successfully')
+      } catch (err) {
+        console.error('[FACE_API] Model load error:', err)
+        setError('Failed to load face detection models. Please check your connection.')
+      }
+    }
+    loadModels()
+  }, [])
+
+  // 2. Start Camera
+  useEffect(() => {
+    let stream
+    async function startCamera() {
+      if (!modelsLoaded) return
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+        })
+        if (videoRef.current) videoRef.current.srcObject = stream
+        setCameraAccess(true)
+        setFeedback({ msg: 'Ready for capture', type: 'success' })
+      } catch (err) {
+        setError(err.name === 'NotAllowedError' ? 'Camera access denied.' : `Camera error: ${err.message}`)
+      }
+    }
+    startCamera()
+    return () => {
+      if (stream) stream.getTracks().forEach(t => t.stop())
+      if (requestRef.current) cancelAnimationFrame(requestRef.current)
+    }
+  }, [modelsLoaded])
+
+  // 3. Real-time Detection Loop
+  // 3. Real-time Detection Loop
+  const runDetection = useCallback(async (time) => {
+    const currentPhase = phaseRef.current
+    if (!videoRef.current || !canvasRef.current) return
+    if (currentPhase !== 'camera' && currentPhase !== 'capturing') return
+
+    // Throttle to ~10 FPS for performance
+    if (time - lastProcessedTime.current < 100) {
+      requestRef.current = requestAnimationFrame(runDetection)
+      return
+    }
+    lastProcessedTime.current = time
+
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video.videoWidth || !video.videoHeight) {
+      requestRef.current = requestAnimationFrame(runDetection)
+      return
+    }
+
+    // Draw current frame to hidden canvas
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    ctx.drawImage(video, 0, 0)
+
+    // A. Brightness Check
+    const b = calculateBrightness(canvas)
+    setBrightness(b)
+
+    let currentFeedback = { msg: 'Position your face', type: 'info' }
+
+    if (b < 40) {
+      currentFeedback = { msg: 'Too dark! Move to a brighter area', type: 'warning' }
+    } else if (b > 220) {
+      currentFeedback = { msg: 'Too bright! Reduce lighting', type: 'warning' }
     } else {
-      setPreview(null)
+      // B. Face Detection
+      const detection = await faceapi
+        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+        .withFaceLandmarks()
+
+      if (!detection) {
+        if (Date.now() - lastFaceDetectedTimeRef.current > 1500) {
+          faceStartTimeRef.current = null
+          stableFramesRef.current = 0
+          lastFaceBoxRef.current = null
+          initialFacePosRef.current = null
+          isStableRef.current = false
+          movementPassedRef.current = false
+          setIsStable(false)
+          setMovementPassed(false)
+          setStabilityScore(0)
+        }
+        currentFeedback = { msg: 'Face lost. Adjust your position...', type: 'warning' }
+      } else {
+        lastFaceDetectedTimeRef.current = Date.now()
+        const { x, y, width, height } = detection.detection.box
+        const centerX = x + width / 2
+        const centerY = y + height / 2
+        const videoCenterX = video.videoWidth / 2
+        const videoCenterY = video.videoHeight / 2
+
+        if (!faceStartTimeRef.current) {
+          faceStartTimeRef.current = Date.now()
+          initialFacePosRef.current = { centerX, centerY }
+        }
+
+        let jitter = 100
+        if (lastFaceBoxRef.current) {
+          const prev = lastFaceBoxRef.current
+          const dx = Math.abs(centerX - prev.centerX)
+          const dy = Math.abs(centerY - prev.centerY)
+          jitter = (dx / video.videoWidth + dy / video.videoHeight) * 100
+        }
+        lastFaceBoxRef.current = { centerX, centerY }
+
+        if (jitter < 8) {
+          stableFramesRef.current++
+        } else {
+          stableFramesRef.current = Math.max(0, stableFramesRef.current - 1)
+        }
+
+        const newStabilityScore = Math.min(100, (stableFramesRef.current / 15) * 100)
+        setStabilityScore(newStabilityScore)
+
+        if (stableFramesRef.current > 15 && !isStableRef.current) {
+          isStableRef.current = true
+          setIsStable(true)
+        }
+
+        if (isStableRef.current && !movementPassedRef.current && initialFacePosRef.current) {
+          const dx = Math.abs(centerX - initialFacePosRef.current.centerX)
+          const dy = Math.abs(centerY - initialFacePosRef.current.centerY)
+          const moveDist = (dx / video.videoWidth + dy / video.videoHeight) * 100
+          movementHistoryRef.current.push(moveDist)
+          if (movementHistoryRef.current.length > 20) movementHistoryRef.current.shift()
+          const totalMove = movementHistoryRef.current.reduce((a, v) => a + v, 0)
+          if (totalMove > 15) {
+            movementPassedRef.current = true
+            setMovementPassed(true)
+          }
+        }
+
+        const isCentered =
+          Math.abs(centerX - videoCenterX) < video.videoWidth * 0.18 &&
+          Math.abs(centerY - videoCenterY) < video.videoHeight * 0.18
+        const isCorrectSize = height > video.videoHeight * 0.35 && height < video.videoHeight * 0.85
+
+        if (!isCentered) {
+          currentFeedback = { msg: 'Center your face in the frame', type: 'warning' }
+        } else if (!isCorrectSize) {
+          currentFeedback = { msg: 'Adjust distance from camera', type: 'warning' }
+        } else if (!isStableRef.current) {
+          currentFeedback = { msg: 'Hold still for a moment...', type: 'info' }
+        } else if (!movementPassedRef.current) {
+          currentFeedback = { msg: 'Now, move your head slightly left or right', type: 'info' }
+        } else {
+          currentFeedback = { msg: 'Liveness Verified — Start Capture', type: 'success' }
+        }
+
+        if (overlayRef.current) {
+          const overlayCtx = overlayRef.current.getContext('2d')
+          overlayRef.current.width = video.videoWidth
+          overlayRef.current.height = video.videoHeight
+          overlayCtx.clearRect(0, 0, video.videoWidth, video.videoHeight)
+          overlayCtx.strokeStyle =
+            currentFeedback.type === 'success' ? '#10b981' :
+            currentFeedback.type === 'warning' ? '#f59e0b' : '#3b82f6'
+          overlayCtx.lineWidth = 4
+          overlayCtx.setLineDash(currentFeedback.type === 'success' ? [] : [10, 5])
+          overlayCtx.lineDashOffset = -(time / 20)
+          overlayCtx.strokeRect(x, y, width, height)
+          overlayCtx.setLineDash([])
+          overlayCtx.lineWidth = 8
+          const cLen = 40
+          overlayCtx.beginPath(); overlayCtx.moveTo(x, y + cLen); overlayCtx.lineTo(x, y); overlayCtx.lineTo(x + cLen, y); overlayCtx.stroke()
+          overlayCtx.beginPath(); overlayCtx.moveTo(x + width - cLen, y); overlayCtx.lineTo(x + width, y); overlayCtx.lineTo(x + width, y + cLen); overlayCtx.stroke()
+          overlayCtx.beginPath(); overlayCtx.moveTo(x, y + height - cLen); overlayCtx.lineTo(x, y + height); overlayCtx.lineTo(x + cLen, y + height); overlayCtx.stroke()
+          overlayCtx.beginPath(); overlayCtx.moveTo(x + width - cLen, y + height); overlayCtx.lineTo(x + width, y + height); overlayCtx.lineTo(x + width, y + height - cLen); overlayCtx.stroke()
+        }
+      }
+    }
+
+    if (currentPhase === 'capturing' && currentFeedback.type === 'success') {
+      const frame = canvas.toDataURL('image/jpeg', 0.6).split(',')[1]
+      framesRef.current.push(frame)
+      const newProgress = Math.round((framesRef.current.length / TOTAL_FRAMES) * 100)
+      setProgress(newProgress)
+      if (framesRef.current.length >= TOTAL_FRAMES) {
+        phaseRef.current = 'processing'
+        setPhase('processing')
+        submitFrames(framesRef.current)
+        return
+      }
+    }
+
+    setFeedback(currentFeedback)
+    requestRef.current = requestAnimationFrame(runDetection)
+  }, [TOTAL_FRAMES])
+
+  useEffect(() => {
+    if (cameraAccess && (phase === 'camera' || phase === 'capturing')) {
+      requestRef.current = requestAnimationFrame(runDetection)
+    }
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current)
+    }
+  }, [cameraAccess, phase, runDetection])
+
+  const startCapture = () => {
+    if (feedback.type !== 'success' || serviceStatus !== 'online') return
+    framesRef.current = []
+    setProgress(0)
+    phaseRef.current = 'capturing'
+    setPhase('capturing')
+  }
+
+  const submitFrames = async (frames) => {
+    setFeedback({ msg: 'Analyzing liveness & security...', type: 'info' })
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 20000) // 20s hard timeout
+    try {
+      const csrf = await getCsrf()
+      const res = await fetch(`${API}/verify/selfie`, {
+        method: 'POST', credentials: 'include', signal: controller.signal,
+        headers: { 'Content-Type': 'application/json', ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
+        body: JSON.stringify({ livenessFrames: frames })
+      })
+      clearTimeout(timeout)
+
+      const data = await res.json()
+      if (data.success || data.liveness === true) {
+        phaseRef.current = 'passed'
+        setPhase('passed')
+        setFeedback({ msg: 'Verification successful!', type: 'success' })
+        setTimeout(() => onPass(data.selfie_b64), 1500)
+      } else {
+        phaseRef.current = 'failed'
+        setPhase('failed')
+        setError(data.error || 'Liveness check failed. Please try again in better lighting.')
+      }
+    } catch (e) {
+      clearTimeout(timeout)
+      phaseRef.current = 'failed'
+      setPhase('failed')
+      if (e.name === 'AbortError') {
+        setError('Request timed out (20s). The vision service may be busy. Please try again.')
+      } else {
+        setError('Connection issue. The AI service is currently unreachable. Please try again.')
+      }
     }
   }
 
-  const handleDrop = (e) => {
-    e.preventDefault(); setDragging(false)
-    handleFile(e.dataTransfer.files[0])
+  const reset = () => {
+    phaseRef.current = 'camera'
+    setPhase('camera')
+    setError(null)
+    framesRef.current = []
+    setProgress(0)
+    setIsStable(false)
+    setMovementPassed(false)
+    setStabilityScore(0)
+    faceStartTimeRef.current = null
+    stableFramesRef.current = 0
+    lastFaceBoxRef.current = null
+    initialFacePosRef.current = null
+    movementHistoryRef.current = []
+    isStableRef.current = false
+    movementPassedRef.current = false
   }
 
-  const submit = async () => {
-    if (!file) return
-    setLoading(true)
-    console.log('[FRONTEND] Starting Aadhaar upload...', file.name);
-    try {
-      const csrf    = await getCsrf()
-      const formData = new FormData()
-      formData.append('aadhaar', file)
-      console.log('[FRONTEND] Fetching /api/verify/aadhaar-ocr...');
-      const res = await fetch(`${API}/verify/aadhaar-ocr`, {
-        method: 'POST', credentials: 'include',
-        headers: csrf ? { 'X-CSRF-Token': csrf } : {},
-        body: formData
-      })
-      console.log('[FRONTEND] Response received:', res.status);
-      const data = await res.json()
-      console.log('[FRONTEND] Data parsed:', data);
-      setResult(data)
-    } catch (e) {
-      console.error('[FRONTEND] Upload error:', e);
-      setResult({ passed: false, reason: 'Upload failed — check your connection.' })
-    } finally { setLoading(false) }
+  if (!modelsLoaded && !error) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <Loader size={48} color="var(--hectate-pink)" style={{ animation: 'spin 1s linear infinite', marginBottom: 20 }} />
+        <p style={{ fontWeight: 600, color: 'var(--slate-600)' }}>Initializing AI Guard...</p>
+      </div>
+    )
   }
 
   return (
     <div style={{ animation: 'fadeIn 0.4s' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--hectate-soft-pink)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Camera size={16} color="var(--hectate-pink)" />
+          </div>
+          <h3 style={{ margin: 0, fontSize: 18, color: 'var(--slate-800)' }}>Step 1: Face Match</h3>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'var(--slate-50)', borderRadius: 20 }}>
+          <Sun size={14} color={brightness < 40 ? '#ef4444' : brightness > 220 ? '#f59e0b' : '#10b981'} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--slate-500)' }}>{Math.round(brightness / 255 * 100)}% Light</span>
+        </div>
+      </div>
+
+      <div style={{ 
+        position: 'relative', width: '100%', aspectRatio: '4/3', 
+        background: '#000', borderRadius: 20, overflow: 'hidden',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.2)', marginBottom: 24,
+        border: `4px solid ${feedback.type === 'warning' ? '#f59e0b' : feedback.type === 'success' ? '#10b981' : '#e2e8f0'}`,
+        animation: faceStartTimeRef.current && !isStable ? 'pulseScanner 2s infinite' : 'none'
+      }}>
+        {/* Stability Progress Bar */}
+        {(faceStartTimeRef.current || stabilityScore > 0) && (
+          <div style={{ 
+            position: 'absolute', top: 0, left: 0, right: 0, height: 6, 
+            background: 'rgba(255,255,255,0.1)', zIndex: 40, overflow: 'hidden'
+          }}>
+            <div style={{ 
+              height: '100%', 
+              background: movementPassed ? '#10b981' : 'var(--hectate-pink)', 
+              width: `${isStable ? (movementPassed ? 100 : 75) : stabilityScore * 0.75}%`,
+              transition: 'all 0.3s ease-out',
+              boxShadow: '0 0 10px rgba(236, 72, 153, 0.5)'
+            }} />
+          </div>
+        )}
+        <video ref={videoRef} autoPlay playsInline muted 
+          style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
+        
+        <canvas ref={overlayRef} 
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10, transform: 'scaleX(-1)' }} />
+        
+        <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+        {/* Status Overlay */}
+        <div style={{ 
+          position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+          padding: '10px 20px', borderRadius: 12, background: 'rgba(0,0,0,0.7)',
+          backdropFilter: 'blur(10px)', color: '#fff', zIndex: 20,
+          display: 'flex', alignItems: 'center', gap: 10, minWidth: 200, justifyContent: 'center'
+        }}>
+          {feedback.type === 'warning' ? <AlertCircle size={18} color="#f59e0b" /> : 
+           feedback.type === 'success' ? <Check size={18} color="#10b981" /> : 
+           <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} />}
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{feedback.msg}</span>
+        </div>
+
+        {phase === 'processing' && (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 30, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+            <Loader size={40} color="#fff" style={{ animation: 'spin 1s linear infinite' }} />
+            <p style={{ color: '#fff', fontWeight: 700, margin: 0 }}>Processing Security...</p>
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, margin: 0 }}>This may take up to 20 seconds</p>
+            <button
+              onClick={reset}
+              style={{
+                marginTop: 8, padding: '8px 20px', background: 'rgba(255,255,255,0.15)',
+                color: '#fff', border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                backdropFilter: 'blur(4px)'
+              }}
+            >
+              Cancel & Retry
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── CTA Button — always visible below the video ── */}
+      <div style={{ marginTop: 20, marginBottom: 8 }}>
+        {error ? (
+          <div>
+            <div style={{ padding: 14, background: '#fef2f2', borderRadius: 12, border: '1px solid #fecaca', marginBottom: 12 }}>
+              <p style={{ color: '#991b1b', fontSize: 13, fontWeight: 600, margin: 0 }}>{error}</p>
+            </div>
+            <button onClick={reset} style={{
+              width: '100%', padding: 14, background: '#ef4444', color: '#fff',
+              border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 15, cursor: 'pointer'
+            }}>↩ Retry Verification</button>
+          </div>
+        ) : phase === 'capturing' ? (
+          <div style={{ padding: '0 4px' }}>
+            <div style={{ height: 6, width: '100%', background: 'var(--slate-100)', borderRadius: 3, overflow: 'hidden', marginBottom: 8 }}>
+              <div style={{ height: '100%', background: 'var(--gradient-main)', width: `${progress}%`, transition: 'width 0.2s' }} />
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--slate-400)', textAlign: 'center', fontWeight: 600 }}>Capturing biometric data... {progress}%</p>
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={startCapture}
+              disabled={feedback.type !== 'success'}
+              style={{
+                width: '100%', padding: 16,
+                background: feedback.type === 'success'
+                  ? 'linear-gradient(135deg,#7c3aed,#ec4899)'
+                  : '#e2e8f0',
+                color: feedback.type === 'success' ? '#fff' : '#94a3b8',
+                border: 'none', borderRadius: 16, fontWeight: 800, fontSize: 15,
+                cursor: feedback.type === 'success' ? 'pointer' : 'not-allowed',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                transition: 'all 0.3s',
+                boxShadow: feedback.type === 'success' ? '0 8px 24px rgba(124,58,237,0.35)' : 'none'
+              }}
+            >
+              <Camera size={20} />
+              {feedback.type === 'success' ? '▶  START LIVE CAPTURE' : 'Waiting for face detection...'}
+            </button>
+            {serviceStatus !== 'online' && (
+              <p style={{ fontSize: 11, color: '#f59e0b', textAlign: 'center', margin: '8px 0 0', fontWeight: 600 }}>
+                ⚠ Vision service offline — demo mode active
+              </p>
+            )}
+          </>
+        )}
+      </div>
+
+      <p style={{ fontSize: 11, color: 'var(--slate-400)', marginTop: 12, textAlign: 'center', lineHeight: 1.5 }}>
+        Hectate uses edge AI for real-time security.<br/>Data is encrypted and never stored without your consent.
+      </p>
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
+// STEP 2 — Aadhaar OCR (Gender Validation)
+// ══════════════════════════════════════════════════════════════════════════════
+function AadhaarStep({ onPass, selfieB64 }) {
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [error, setError]             = useState(null)
+  const [aadhaarFile, setAadhaarFile] = useState(null)
+  const [aadhaarPreview, setAadhaarPreview] = useState(null)
+  const fileInputRef = useRef(null)
+
+  const handleFileSelect = (e) => {
+    const selected = e.target.files[0]
+    if (!selected) return
+    setAadhaarFile(selected)
+    setError(null)
+    const reader = new FileReader()
+    reader.onloadend = () => { setAadhaarPreview(reader.result) }
+    reader.readAsDataURL(selected)
+  }
+
+  const verifyAadhaar = async () => {
+    if (!aadhaarFile) return
+    setIsVerifying(true)
+    setError(null)
+    try {
+      const csrf = await getCsrf()
+      const formData = new FormData()
+      formData.append('aadhaar', aadhaarFile)
+      if (selfieB64) formData.append('selfie_b64', selfieB64)
+      const res  = await fetch(`${API}/verify/aadhaar-match`, {
+        method: 'POST', credentials: 'include',
+        headers: { ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
+        body: formData
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.reason || data.error || 'Aadhaar verification failed.')
+      setTimeout(() => onPass(data), 1500)
+    } catch (err) {
+      console.error('[AADHAAR_MATCH]', err)
+      setError(err.message)
+      setIsVerifying(false)
+    }
+  }
+
+  const resetImage = () => { setAadhaarPreview(null); setAadhaarFile(null); setError(null) }
+
+  return (
+    <div style={{ animation: 'fadeIn 0.4s' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
         <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--hectate-soft-pink)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <FileText size={18} color="var(--hectate-pink)" />
         </div>
         <div>
-          <h2 style={{ fontSize: 20, margin: 0, color: 'var(--slate-800)' }}>Step 2: ID Verification</h2>
-          <p style={{ fontSize: 13, color: 'var(--slate-500)', margin: 0 }}>Securely verify your identity via Aadhaar</p>
+          <h2 style={{ fontSize: 20, margin: 0, color: 'var(--slate-800)' }}>Step 2: Aadhaar Card</h2>
+          <p style={{ fontSize: 13, color: 'var(--slate-500)', margin: 0 }}>Extracting OCR &amp; Identity Data</p>
         </div>
       </div>
 
-      <div
-        onDragOver={e => { e.preventDefault(); setDragging(true) }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
-        style={{
-          marginTop: 16, border: `2px dashed ${dragging ? 'var(--hectate-pink)' : 'var(--slate-200)'}`,
-          borderRadius: 4, padding: 32, textAlign: 'center', cursor: 'pointer',
-          background: dragging ? 'var(--hectate-soft-pink)' : preview ? '#f8f8ff' : 'var(--slate-50)',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: dragging ? '0 8px 24px rgba(236, 28, 110, 0.1)' : 'none'
-        }}>
-        <input ref={inputRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
-        {preview === 'pdf-icon' ? (
-          <div style={{ padding: '20px 0' }}>
-            <FileText size={64} color="var(--hectate-pink)" style={{ marginBottom: 12 }} />
-            <p style={{ margin: 0, color: 'var(--hectate-burgundy)', fontWeight: 600 }}>PDF Document Detected</p>
-          </div>
-        ) : preview ? (
-          <img src={preview} alt="Aadhaar preview" style={{ maxHeight: 200, borderRadius: 4, marginBottom: 12, objectFit: 'contain', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-        ) : (
-          <div style={{ padding: '20px 0' }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-              <Upload size={28} color="var(--hectate-pink)" />
-            </div>
-            <p style={{ margin: 0, fontWeight: 600, fontSize: 15, color: 'var(--slate-700)' }}>
-              {file ? file.name : 'Click or Drag Aadhaar Card'}
-            </p>
-            <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--slate-400)' }}>Front side of card preferred</p>
-          </div>
-        )}
-      </div>
+      {/* Hidden file input */}
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} />
 
-      {result && (
+      {/* Image zone */}
+      {!aadhaarPreview ? (
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            width: '100%', minHeight: 180, borderRadius: 16,
+            border: '2px dashed var(--slate-200)', background: 'var(--slate-50)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', transition: 'border 0.2s', marginBottom: 16
+          }}
+        >
+          <Upload size={32} color="var(--slate-300)" style={{ marginBottom: 12 }} />
+          <p style={{ fontSize: 14, color: 'var(--slate-500)', margin: 0, fontWeight: 500 }}>Upload Front of Aadhaar Card</p>
+          <p style={{ fontSize: 11, color: 'var(--slate-400)', marginTop: 4 }}>Required for Gender &amp; Identity Check</p>
+        </div>
+      ) : (
         <div style={{
-          marginTop: 20, padding: 18, borderRadius: 16,
-          background: result.passed ? '#f0fdf4' : '#fef2f2',
-          border: `1px solid ${result.passed ? '#bbf7d0' : '#fecaca'}`,
-          animation: 'slideIn 0.3s ease'
+          width: '100%', borderRadius: 16, border: '2px solid var(--slate-100)',
+          background: 'var(--slate-50)', padding: 16, marginBottom: 16, position: 'relative'
         }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <div style={{ 
-              width: 24, height: 24, borderRadius: '50%', 
-              background: result.passed ? '#22c55e' : '#ef4444',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              {result.passed ? <Check size={14} color="white" /> : <X size={14} color="white" />}
-            </div>
-            <strong style={{ color: result.passed ? '#166534' : '#991b1b', fontSize: 16 }}>
-              {result.passed ? 'Aadhaar Card Verified' : 'Unable to Verify'}
-            </strong>
-          </div>
-          <p style={{ margin: 0, fontSize: 14, color: result.passed ? '#15803d' : '#b91c1c', lineHeight: 1.5 }}>
-            {result.reason || result.error || 'The document could not be processed.'}
-          </p>
-          
-          {result.aadhaar_number && (
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--slate-600)' }}>
-              <span>ID: <strong>{result.aadhaar_number.replace(/\d(?=\d{4})/g, '•')}</strong></span>
-              <span>GENDER: <strong>{result.gender?.toUpperCase()}</strong></span>
+          <img src={aadhaarPreview} alt="Aadhaar" style={{ width: '100%', height: 160, objectFit: 'contain', borderRadius: 8, display: 'block' }} />
+          {isVerifying && (
+            <div style={{ position: 'absolute', inset: 0, borderRadius: 16, background: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Loader size={28} color="var(--hectate-pink)" style={{ animation: 'spin 1s linear infinite' }} />
             </div>
           )}
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-        <button className="btn btn-primary" style={{ flex: 1, height: 48, borderRadius: 12 }} disabled={!file || loading} onClick={submit}>
-          {loading ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> 
-              <span>VERIFYING...</span>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <Shield size={18} />
-              <span>SCAN DOCUMENT</span>
-            </div>
-          )}
-        </button>
-        {result?.passed && (
-          <button className="btn btn-primary" style={{ flex: 1, height: 48, borderRadius: 12, background: '#16a34a' }} onClick={() => onPass(result.aadhaarHash)}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <span>NEXT STEP</span>
-              <Check size={18} />
-            </div>
+      {/* ── ACTION BUTTONS — outside image container, always visible ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Error banner */}
+        {error && !isVerifying && (
+          <div style={{ padding: 12, background: '#fef2f2', borderRadius: 10, border: '1px solid #fecaca', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <AlertCircle size={18} color="#dc2626" style={{ flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontSize: 12, color: '#991b1b', margin: 0, lineHeight: 1.5 }}>{error}</p>
+          </div>
+        )}
+
+        {/* Primary button */}
+        {isVerifying ? (
+          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--hectate-pink)', textAlign: 'center', margin: 0, textTransform: 'uppercase' }}>
+            Extracting Data...
+          </p>
+        ) : !aadhaarPreview ? (
+          <button onClick={() => fileInputRef.current?.click()} style={{
+            width: '100%', padding: '15px', borderRadius: 14, border: 'none',
+            background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff',
+            fontWeight: 800, fontSize: 15, cursor: 'pointer', boxShadow: '0 8px 24px rgba(124,58,237,0.3)'
+          }}>
+            SELECT AADHAAR IMAGE
+          </button>
+        ) : (
+          <button onClick={verifyAadhaar} style={{
+            width: '100%', padding: '15px', borderRadius: 14, border: 'none',
+            background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff',
+            fontWeight: 800, fontSize: 15, cursor: 'pointer', boxShadow: '0 8px 24px rgba(124,58,237,0.3)'
+          }}>
+            {error ? 'RETRY OCR' : 'PROCEED TO VERIFY AADHAAR'}
+          </button>
+        )}
+
+        {/* Change image */}
+        {aadhaarPreview && !isVerifying && (
+          <button onClick={resetImage} style={{
+            width: '100%', padding: '11px', borderRadius: 12,
+            border: '1.5px solid var(--slate-200)', background: '#fff',
+            color: 'var(--slate-600)', fontWeight: 600, fontSize: 13, cursor: 'pointer'
+          }}>
+            Upload Different Image
           </button>
         )}
       </div>
@@ -183,470 +660,331 @@ function AadhaarStep({ onPass }) {
   )
 }
 
+// STEP 3 — Biometric Face Match
 // ══════════════════════════════════════════════════════════════════════════════
-// STEP 1 — Gender Verification (Face Match)
-// ══════════════════════════════════════════════════════════════════════════════
-function GenderVerificationStep({ onPass }) {
-  const videoRef = useRef(null)
-  const canvasRef = useRef(null)
-  const [loading, setLoading] = useState(false)
-  const [votes, setVotes] = useState([])
+function MatchingStep({ selfieB64, aadhaarFaceB64, onPass }) {
+  const [status, setStatus] = useState('initializing') // initializing|matching|failed|passed
   const [error, setError] = useState(null)
-  const [uncertain, setUncertain] = useState(false)
-  const [message, setMessage] = useState('')
-  const [cameraAccess, setCameraAccess] = useState(false)
-  const [systemStatus, setSystemStatus] = useState('checking')
-  
-  // 1. Check system status once
-  useEffect(() => {
-    const checkSystem = async () => {
-      try {
-        const token = await getCsrf(true); // Force refresh on mount
-        if (token) setSystemStatus('online');
-        else setSystemStatus('offline');
-      } catch (e) {
-        setSystemStatus('offline');
-      }
-    };
-    checkSystem();
-  }, []);
+  const [confidence, setConfidence] = useState(0)
 
-  // 2. Start camera
   useEffect(() => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setError('Your browser does not support camera access or is in an insecure context (HTTP).');
-      return;
-    }
-
-    let stream;
-    async function startCamera(retryCount = 0) {
-      console.log(`[Camera] Requesting access (Attempt ${retryCount + 1})...`);
-      setError(null);
+    const performMatch = async () => {
+      setStatus('matching')
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            facingMode: 'user',
-            width: { ideal: 640 },
-            height: { ideal: 480 }
-          } 
-        });
-        console.log("[Camera] Stream acquired:", stream.id);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-        setCameraAccess(true);
-      } catch (e) {
-        console.error('[Camera] Access Error:', e.name, e.message);
-        if ((e.name === 'NotReadableError' || e.name === 'TrackStartError') && retryCount < 2) {
-          setTimeout(() => startCamera(retryCount + 1), 1000);
-          return;
-        }
-        
-        if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
-          setError('Camera is busy. Please close other apps using the camera.');
-        } else if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-          setError('Camera access denied. Please enable it in browser settings.');
+        const csrf = await getCsrf()
+        const res = await fetch(`${API}/verify/match`, {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json', ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
+          body: JSON.stringify({ selfie_b64: selfieB64, aadhaar_face_b64: aadhaarFaceB64 })
+        })
+        const data = await res.json()
+
+        if (data.success && data.match) {
+          setConfidence(Math.round(data.confidence * 100))
+          setStatus('passed')
+          setTimeout(onPass, 2000)
         } else {
-          setError(`Camera Error: ${e.message || 'Unavailable'}`);
+          setStatus('failed')
+          setError(data.error || 'Identity mismatch. The selfie does not match the Aadhaar photo.')
         }
+      } catch (err) {
+        setStatus('failed')
+        setError('Verification service unavailable. Please try again later.')
       }
     }
-    startCamera();
-    return () => {
-      if (stream) stream.getTracks().forEach(t => t.stop())
-    }
-  }, [])
-  
-  const captureFrame = () => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas || video.videoWidth === 0) return null;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0);
-    return canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-  }
-  
-  const verifyGender = useCallback(async () => {
-    if (loading || votes.length >= 12 || !cameraAccess || systemStatus !== 'online') return;
-    
-    const frame = captureFrame();
-    if (!frame) return;
-    
-    console.log(`[FRONTEND] Sending frame ${votes.length + 1} for verification...`);
-    setLoading(true);
-    setUncertain(false);
-    try {
-      const csrf = await getCsrf();
-      const res = await fetch(`${API}/verify/gender-check`, {
-        method: 'POST', 
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrf ? { 'X-CSRF-Token': csrf } : {})
-        },
-        body: JSON.stringify({ frame, votes })
-      });
-      
-      const data = await res.json();
-      console.log('[FRONTEND] Verification response:', data);
-
-      if (res.status === 403 && data.error === 'CSRF token validation failed') {
-        console.warn('[FRONTEND] CSRF Failure, retrying with new token...');
-        await getCsrf(true); // Refresh cache
-        return;
-      }
-
-      setMessage(data.message || '');
-
-      if (data.status === 'success') {
-        console.log('[FRONTEND] Verification SUCCESS! Navigating to Aadhaar step...');
-        onPass();
-      } else if (data.status === 'gathering') {
-        setVotes(data.votes);
-      } else if (data.status === 'uncertain') {
-        setVotes(data.votes);
-        setUncertain(true);
-        setMessage(data.message || 'Detection inconclusive due to lighting.');
-      } else if (data.status === 'failed') {
-        setError(data.message || 'Verification failed. Hectate is a women-only platform.');
-      } else if (data.error) {
-        setError(`System Error: ${data.error}`);
-      }
-    } catch (e) {
-      console.error('Service error', e);
-      // Don't set hard error here, just let the next cycle try if backend blips
-    } finally {
-      setLoading(false);
-    }
-  }, [votes, loading, cameraAccess, systemStatus, onPass]);
-  
-  // 3. Trigger verification cycle
-  useEffect(() => {
-    if (!cameraAccess || error || systemStatus !== 'online' || loading || votes.length >= 12) return;
-    
-    const timer = setTimeout(() => {
-      verifyGender();
-    }, 2000);
-    
-    return () => clearTimeout(timer);
-  }, [cameraAccess, error, systemStatus, loading, votes.length, verifyGender]);
-
-  const progress = Math.min((votes.length / 12) * 100, 100);
-
+    performMatch()
+  }, [selfieB64, aadhaarFaceB64, onPass])
 
   return (
     <div style={{ animation: 'fadeIn 0.4s', textAlign: 'center' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' }}>
-          <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--hectate-soft-pink)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Camera size={18} color="var(--hectate-pink)" />
-          </div>
-          <div>
-            <h2 style={{ fontSize: 20, margin: 0, color: 'var(--slate-800)' }}>Step 1: Face Liveness</h2>
-            <p style={{ fontSize: 13, color: 'var(--slate-500)', margin: 0 }}>Ensuring a safe, women-only environment</p>
-          </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 30, justifyContent: 'center' }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--hectate-soft-pink)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Users size={18} color="var(--hectate-pink)" />
         </div>
-        
-
+        <h2 style={{ fontSize: 20, margin: 0, color: 'var(--slate-800)' }}>Step 3: Biometric Match</h2>
       </div>
 
-      <div style={{ 
-        position: 'relative', width: '100%', maxWidth: 480, height: 320, 
-        margin: '0 auto 24px', borderRadius: 2, overflow: 'hidden', 
-        border: `3px solid ${error ? '#ef4444' : 'var(--purple-500)'}`, 
-        boxShadow: '0 12px 40px rgba(0,0,0,0.15)', background: '#000' 
-      }}>
-        <video 
-          ref={videoRef} 
-          autoPlay 
-          playsInline 
-          muted 
-          style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} 
-        />
-        
-        {/* Scanning Rectangle Overlay */}
-        <div style={{ 
-          position: 'absolute', top: '10%', left: '15%', right: '15%', bottom: '10%',
-          border: '2px solid rgba(139, 92, 246, 0.5)',
-          borderRadius: 0,
-          pointerEvents: 'none',
-          zIndex: 5
-        }}>
-          {/* Corner accents */}
-          <div style={{ position: 'absolute', top: -2, left: -2, width: 20, height: 20, borderTop: '4px solid var(--hectate-pink)', borderLeft: '4px solid var(--hectate-pink)' }} />
-          <div style={{ position: 'absolute', top: -2, right: -2, width: 20, height: 20, borderTop: '4px solid var(--hectate-pink)', borderRight: '4px solid var(--hectate-pink)' }} />
-          <div style={{ position: 'absolute', bottom: -2, left: -2, width: 20, height: 20, borderBottom: '4px solid var(--hectate-pink)', borderLeft: '4px solid var(--hectate-pink)' }} />
-          <div style={{ position: 'absolute', bottom: -2, right: -2, width: 20, height: 20, borderBottom: '4px solid var(--hectate-pink)', borderRight: '4px solid var(--hectate-pink)' }} />
-          
-          {/* Scanning Line */}
-          {!error && !loading && votes.length > 0 && (
-            <div style={{ 
-              position: 'absolute', top: 0, left: 0, right: 0, height: 2, 
-              background: 'var(--hectate-pink)', 
-              boxShadow: '0 0 15px var(--hectate-pink)',
-              animation: 'scanLine 3s ease-in-out infinite',
-              zIndex: 6
-            }} />
-          )}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginBottom: 40, position: 'relative' }}>
+        <div style={{ width: 120, height: 120, borderRadius: 20, overflow: 'hidden', border: '3px solid #fff', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+          <img src={`data:image/jpeg;base64,${selfieB64}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Selfie" />
+          <div style={{ position: 'absolute', bottom: -10, left: 40, background: '#10b981', color: '#fff', fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 800 }}>LIVE</div>
         </div>
 
-        <canvas ref={canvasRef} style={{ display: 'none' }} />
-        
-        {loading && !error && (
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-            <div style={{ textAlign: 'center' }}>
-              <Loader size={32} color="#fff" style={{ animation: 'spin 1s linear infinite', marginBottom: 12 }} />
-              <p style={{ color: '#fff', fontSize: 12, fontWeight: 600, margin: 0 }}>Processing...</p>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {status === 'matching' ? (
+            <div style={{ position: 'relative', width: 60, height: 2, background: 'var(--slate-100)' }}>
+              <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)' }}>
+                <RefreshCw size={20} color="var(--hectate-pink)" style={{ animation: 'spin 2s linear infinite' }} />
+              </div>
             </div>
-          </div>
+          ) : status === 'passed' ? (
+            <Check size={32} color="#10b981" />
+          ) : status === 'failed' ? (
+            <X size={32} color="#ef4444" />
+          ) : null}
+        </div>
+
+        <div style={{ width: 120, height: 120, borderRadius: 20, overflow: 'hidden', border: '3px solid #fff', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+          <img src={`data:image/jpeg;base64,${aadhaarFaceB64}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Aadhaar Face" />
+          <div style={{ position: 'absolute', bottom: -10, right: 40, background: 'var(--hectate-pink)', color: '#fff', fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 800 }}>DOCUMENT</div>
+        </div>
+        
+        {status === 'matching' && (
+          <div style={{ 
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
+            background: 'linear-gradient(rgba(124, 58, 237, 0.1), rgba(124, 58, 237, 0.1))',
+            zIndex: 5, pointerEvents: 'none',
+            borderTop: '2px solid var(--hectate-pink)',
+            animation: 'scanLine 2s infinite ease-in-out'
+          }} />
         )}
       </div>
 
-      {error ? (
-        <div style={{ padding: 24, background: '#fef2f2', borderRadius: 12, border: '1px solid #fecaca', color: '#991b1b', fontSize: 14 }}>
-          <p style={{ margin: '0 0 16px', fontWeight: 600 }}>{error}</p>
-          {systemStatus === 'offline' && (
-            <p style={{ fontSize: 12, opacity: 0.8, marginBottom: 16 }}>
-              The Hectate verification bridge appears to be offline. 
-              Please ensure the backend servers are running.
-            </p>
-          )}
-          <button 
-            onClick={() => window.location.reload()}
-            style={{ padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}
-          >
-            {systemStatus === 'offline' ? 'Check Again' : 'Retry Access'}
-          </button>
-        </div>
-      ) : uncertain ? (
-        <div style={{ padding: 20, background: '#fffbeb', borderRadius: 12, border: '1px solid #fef3c7', textAlign: 'left' }}>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-            <AlertCircle size={24} color="#d97706" style={{ flexShrink: 0 }} />
-            <div>
-              <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#92400e' }}>Verification Inconclusive</p>
-              <p style={{ margin: 0, fontSize: 13, color: '#b45309', lineHeight: 1.4 }}>
-                {message || "We couldn't verify your identity with high confidence. This can happen due to low lighting or glasses."}
-              </p>
-            </div>
-          </div>
-          
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button 
-              onClick={() => { setVotes([]); setUncertain(false); }}
-              style={{ flex: 1, padding: '10px', background: '#fff', border: '1px solid #fcd34d', borderRadius: 8, color: '#92400e', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-            >
-              <Sun size={16} /> Try Again
-            </button>
-            <button 
-              onClick={onPass}
-              style={{ flex: 1.5, padding: '10px', background: 'var(--hectate-pink)', border: 'none', borderRadius: 8, color: '#fff', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-            >
-              Continue to Aadhaar <ArrowRight size={16} />
-            </button>
-          </div>
-          <p style={{ marginTop: 12, fontSize: 11, color: '#d97706', textAlign: 'center', opacity: 0.8 }}>
-            Manual Aadhaar verification will be stricter if face liveness is inconclusive.
-          </p>
-        </div>
-      ) : (
+      {status === 'matching' && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
-            {message.includes('light') && <Sun size={16} color="#d97706" style={{ animation: 'pulse 2s infinite' }} />}
-            <p style={{ fontSize: 14, color: (message.toLowerCase().includes('light') || message.toLowerCase().includes('fuzzy')) ? '#d97706' : 'var(--slate-600)', margin: 0, fontWeight: 500 }}>
-              {votes.length === 0 ? "Position your face in the frame..." : message || `Analyzing frame ${votes.length} of 12...`}
-            </p>
+          <p style={{ fontWeight: 700, color: 'var(--slate-600)', marginBottom: 8 }}>Matching Biometrics...</p>
+          <div style={{ width: 200, height: 6, background: 'var(--slate-100)', borderRadius: 3, margin: '0 auto', overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: 'var(--hectate-pink)', width: '60%', animation: 'pulse 1.5s infinite' }} />
           </div>
-          <div style={{ width: '100%', height: 8, background: 'var(--slate-100)', borderRadius: 4, overflow: 'hidden' }}>
-            <div style={{ 
-              height: '100%', 
-              background: message.includes('light') ? '#fbbf24' : 'var(--gradient-main)', 
-              width: `${(votes.length / 12) * 100}%`, 
-              transition: 'all 0.3s ease' 
-            }} />
+        </div>
+      )}
+
+      {status === 'passed' && (
+        <div style={{ animation: 'slideIn 0.5s' }}>
+          <div style={{ background: '#ecfdf5', padding: '12px 20px', borderRadius: 16, display: 'inline-block', border: '1px solid #10b981' }}>
+            <p style={{ margin: 0, color: '#065f46', fontWeight: 800, fontSize: 14 }}>IDENTITY MATCHED: {confidence}% CONFIDENCE</p>
+          </div>
+        </div>
+      )}
+
+      {status === 'failed' && (
+        <div style={{ animation: 'shake 0.5s' }}>
+          <div style={{ background: '#fef2f2', padding: '20px', borderRadius: 16, border: '1px solid #fee2e2' }}>
+            <p style={{ margin: '0 0 15px', color: '#991b1b', fontWeight: 600, fontSize: 14 }}>{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              style={{ padding: '10px 20px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer' }}
+            >
+              Restart Verification
+            </button>
           </div>
         </div>
       )}
     </div>
   )
 }
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // STEP 3 — Profile Setup
 // ══════════════════════════════════════════════════════════════════════════════
 function ProfileSetupStep({ onPass, formData, setFormData, loading }) {
-  const [errors, setErrors] = useState({});
-  const [preview, setPreview] = useState(formData.avatarUrl || null);
-  const inputRef = useRef(null);
+  const [errors, setErrors]   = useState({})
+  const [preview, setPreview] = useState(formData.avatarUrl || null)
+  const [showPw, setShowPw]   = useState(false)
+  const inputRef = useRef(null)
 
   const validate = () => {
-    const e = {};
-    if (!formData.name) e.name = 'Full name is required';
-    if (!formData.alias) e.alias = 'Safety alias is required';
-    if (!formData.email) e.email = 'Valid email is required';
-    
-    const cleanPhone = formData.mobileNumber.replace(/[^\d]/g, '');
-    if (!formData.mobileNumber) {
-      e.mobileNumber = 'Mobile number is required';
-    } else if (cleanPhone.length !== 10) {
-      e.mobileNumber = 'Must be exactly 10 digits';
-    }
-
-    const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
-    if (!formData.password) {
-      e.password = 'Security password is required';
-    } else if (!passwordRegex.test(formData.password)) {
-      e.password = 'Use 8+ chars, with a number & symbol';
-    }
-
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
+    const e = {}
+    if (!formData.name)         e.name         = 'Full name is required'
+    if (!formData.alias)        e.alias        = 'Safety alias is required'
+    if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email))
+                                e.email        = 'Valid email is required'
+    const cleanPhone = (formData.mobileNumber || '').replace(/\D/g, '')
+    if (cleanPhone.length !== 10) e.mobileNumber = 'Must be exactly 10 digits'
+    const pwRe = /^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/
+    if (!formData.password || !pwRe.test(formData.password))
+                                e.password     = 'Use 8+ chars, with a number & symbol'
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
 
   const handleFile = (f) => {
-    if (!f) return;
-    if (f.size > 2 * 1024 * 1024) {
-      alert('Photo must be under 2MB');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPreview(reader.result);
-      setFormData({ ...formData, avatarUrl: reader.result });
-    };
-    reader.readAsDataURL(f);
-  };
+    if (!f) return
+    if (f.size > 2 * 1024 * 1024) { alert('Photo must be under 2 MB'); return }
+    const reader = new FileReader()
+    reader.onloadend = () => { setPreview(reader.result); setFormData({ ...formData, avatarUrl: reader.result }) }
+    reader.readAsDataURL(f)
+  }
+
+  /* ── Inline styles for single-column Instagram-style card ── */
+  const S = {
+    page: {
+      minHeight: '100vh', background: '#f2f3f5',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      padding: '40px 16px 60px'
+    },
+    card: {
+      width: '100%', maxWidth: 420, background: '#fff',
+      borderRadius: 20, boxShadow: '0 4px 32px rgba(0,0,0,0.08)',
+      padding: '36px 32px 32px', display: 'flex', flexDirection: 'column', gap: 0
+    },
+    pageTitle: {
+      fontSize: 22, fontWeight: 800, color: '#1e293b',
+      textAlign: 'center', marginBottom: 4, fontFamily: 'Playfair Display, serif'
+    },
+    pageSubtitle: { fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 28 },
+    avatarWrap: { display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28 },
+    avatar: {
+      width: 96, height: 96, borderRadius: '50%',
+      background: '#f1f5f9', border: '3px solid #fff',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      cursor: 'pointer', overflow: 'hidden', transition: 'transform 0.2s'
+    },
+    addPhotoLabel: { fontSize: 11, fontWeight: 800, color: '#EC1C6E', marginTop: 8, letterSpacing: 0.5 },
+    fieldWrap: { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 },
+    label: { fontSize: 12, fontWeight: 700, color: '#475569', letterSpacing: 0.3 },
+    input: {
+      width: '100%', padding: '13px 14px', borderRadius: 10,
+      border: '1.5px solid #d1d5db', background: '#f9f9fb',
+      fontSize: 14, color: '#1e293b', outline: 'none', transition: 'border 0.2s, box-shadow 0.2s',
+      boxSizing: 'border-box'
+    },
+    inputErr: { border: '1.5px solid #dc2626', background: '#fff5f5' },
+    errText: { fontSize: 11, color: '#dc2626', marginTop: 2 },
+    hint: { fontSize: 10, color: '#94a3b8', marginTop: 3 },
+    relWrap: { position: 'relative' },
+    pwToggle: {
+      position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+      background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#94a3b8'
+    },
+    cta: {
+      width: '100%', padding: '15px', borderRadius: 14, border: 'none',
+      background: 'linear-gradient(135deg,#EC1C6E,#ff4d94)',
+      color: '#fff', fontWeight: 800, fontSize: 15, letterSpacing: 0.5,
+      cursor: 'pointer', marginTop: 10,
+      boxShadow: '0 8px 24px rgba(236,28,110,0.30)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+    },
+    ctaDisabled: { opacity: 0.7, cursor: 'not-allowed' },
+    policy: { fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 12 }
+  }
+
+  const Field = ({ id, label, hint, err, children }) => (
+    <div style={S.fieldWrap}>
+      <label htmlFor={id} style={S.label}>{label}</label>
+      {children}
+      {hint  && <span style={S.hint}>{hint}</span>}
+      {err   && <span style={S.errText}>{err}</span>}
+    </div>
+  )
+
+  const inp = (extra = {}) => ({ ...S.input, ...extra })
 
   return (
-    <div className="profile-setup-container" style={{ animation: 'fadeIn 0.4s' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <div style={{ width: 42, height: 42, borderRadius: '12px', background: 'var(--hectate-soft-pink)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Users size={22} color="var(--hectate-pink)" />
-        </div>
-        <div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--slate-800)' }}>Setup Your Profile</h2>
-          <p style={{ fontSize: 13, color: 'var(--slate-500)', margin: 0 }}>Identity verified. Now, create your digital self.</p>
-        </div>
-      </div>
+    <div style={S.page}>
+      <div style={S.card}>
+        {/* Title */}
+        <h2 style={S.pageTitle}>Setup Your Profile</h2>
+        <p style={S.pageSubtitle}>Identity verified. Now, create your digital self.</p>
 
-      <div style={{ textAlign: 'center', marginBottom: 32 }}>
-        <div 
-          onClick={() => inputRef.current?.click()}
-          style={{ 
-            width: 120, height: 120, borderRadius: '50%', border: '4px solid white', 
-            margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', overflow: 'hidden', background: 'var(--slate-50)', position: 'relative',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
-            transition: 'transform 0.3s ease'
-          }}
-          onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'}
-          onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
-        >
-          {preview ? (
-            <img src={preview} alt="Avatar Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <Camera size={32} color="var(--hectate-pink)" opacity={0.6} />
-              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--hectate-pink)', letterSpacing: 0.5 }}>ADD PHOTO</span>
-            </div>
-          )}
-        </div>
-        <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div className="form-group">
-          <label className="form-label" style={{ fontWeight: 600, fontSize: 13 }}>Full Name</label>
-          <input 
-            className="form-input" 
-            placeholder="Legal Name" 
-            value={formData.name} 
-            onChange={e => setFormData({...formData, name: e.target.value})} 
-            style={{ borderColor: errors.name ? '#dc2626' : 'var(--slate-200)', borderRadius: 10 }}
-          />
-          {errors.name && <span style={{fontSize: 11, color: '#dc2626', marginTop: 4, display: 'block'}}>{errors.name}</span>}
-        </div>
-        <div className="form-group">
-          <label className="form-label" style={{ fontWeight: 600, fontSize: 13 }}>Safety Alias</label>
-          <input 
-            className="form-input" 
-            placeholder="@alias" 
-            value={formData.alias} 
-            onChange={e => setFormData({...formData, alias: e.target.value})} 
-            style={{ borderColor: errors.alias ? '#dc2626' : 'var(--slate-200)', borderRadius: 10 }}
-          />
-          {errors.alias && <span style={{fontSize: 11, color: '#dc2626', marginTop: 4, display: 'block'}}>{errors.alias}</span>}
-        </div>
-      </div>
-
-      <div className="form-group" style={{ marginTop: 16 }}>
-        <label className="form-label" style={{ fontWeight: 600, fontSize: 13 }}>Email Address</label>
-        <input 
-          className="form-input" 
-          type="email" 
-          placeholder="your@email.com"
-          value={formData.email} 
-          onChange={e => setFormData({...formData, email: e.target.value})} 
-          style={{ borderColor: errors.email ? '#dc2626' : 'var(--slate-200)', borderRadius: 10 }}
-        />
-        {errors.email && <span style={{fontSize: 11, color: '#dc2626', marginTop: 4, display: 'block'}}>{errors.email}</span>}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
-        <div className="form-group">
-          <label className="form-label" style={{ fontWeight: 600, fontSize: 13 }}>Mobile Number</label>
-          <div style={{ position: 'relative' }}>
-            <input 
-              className="form-input" 
-              placeholder="10 Digits" 
-              value={formData.mobileNumber} 
-              maxLength={10}
-              onChange={e => setFormData({...formData, mobileNumber: e.target.value.replace(/\D/g, '')})} 
-              style={{ borderColor: errors.mobileNumber ? '#dc2626' : 'var(--slate-200)', borderRadius: 10, paddingRight: 32 }}
-            />
-            {formData.mobileNumber.length === 10 && <Check size={14} color="#16a34a" style={{ position: 'absolute', right: 10, top: 13 }} />}
+        {/* Avatar picker — centered */}
+        <div style={S.avatarWrap}>
+          <div
+            style={S.avatar}
+            onClick={() => inputRef.current?.click()}
+            onMouseOver={e => e.currentTarget.style.transform = 'scale(1.06)'}
+            onMouseOut={e  => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            {preview
+              ? <img src={preview} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <Camera size={28} color="#EC1C6E" opacity={0.7} />
+            }
           </div>
-          {errors.mobileNumber && <span style={{fontSize: 11, color: '#dc2626', marginTop: 4, display: 'block'}}>{errors.mobileNumber}</span>}
+          <span style={S.addPhotoLabel}>ADD PHOTO</span>
+          <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
         </div>
-        <div className="form-group">
-          <label className="form-label" style={{ fontWeight: 600, fontSize: 13 }}>Secure Password</label>
-          <div style={{ position: 'relative' }}>
-            <input 
-              className="form-input" 
-              type="password" 
+
+        {/* Full Name */}
+        <Field id="ps-name" label="Full Name" err={errors.name}>
+          <input
+            id="ps-name" style={inp(errors.name ? S.inputErr : {})}
+            placeholder="Legal Name"
+            value={formData.name}
+            onChange={e => setFormData({ ...formData, name: e.target.value })}
+          />
+        </Field>
+
+        {/* Safety Alias */}
+        <Field id="ps-alias" label="Safety Alias" err={errors.alias}>
+          <input
+            id="ps-alias" style={inp(errors.alias ? S.inputErr : {})}
+            placeholder="@your_alias"
+            value={formData.alias}
+            onChange={e => setFormData({ ...formData, alias: e.target.value })}
+          />
+        </Field>
+
+        {/* Email */}
+        <Field id="ps-email" label="Email Address" err={errors.email}>
+          <input
+            id="ps-email" type="email" style={inp(errors.email ? S.inputErr : {})}
+            placeholder="your@email.com"
+            value={formData.email}
+            onChange={e => setFormData({ ...formData, email: e.target.value })}
+          />
+        </Field>
+
+        {/* Mobile */}
+        <Field id="ps-mobile" label="Mobile Number" err={errors.mobileNumber}>
+          <div style={S.relWrap}>
+            <input
+              id="ps-mobile" style={inp({ ...( errors.mobileNumber ? S.inputErr : {}), paddingRight: 36 })}
+              placeholder="10-digit number"
+              value={formData.mobileNumber} maxLength={10}
+              onChange={e => setFormData({ ...formData, mobileNumber: e.target.value.replace(/\D/g, '') })}
+            />
+            {formData.mobileNumber.length === 10 && (
+              <Check size={14} color="#16a34a" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }} />
+            )}
+          </div>
+        </Field>
+
+        {/* Password */}
+        <Field id="ps-pw" label="Secure Password" hint="8+ chars, 1 number, 1 symbol" err={errors.password}>
+          <div style={S.relWrap}>
+            <input
+              id="ps-pw" type={showPw ? 'text' : 'password'}
+              style={inp({ ...(errors.password ? S.inputErr : {}), paddingRight: 40 })}
               placeholder="••••••••"
-              value={formData.password} 
-              onChange={e => setFormData({...formData, password: e.target.value})} 
-              style={{ borderColor: errors.password ? '#dc2626' : 'var(--slate-200)', borderRadius: 10, paddingRight: 32 }}
+              value={formData.password}
+              onChange={e => setFormData({ ...formData, password: e.target.value })}
             />
-            <Lock size={14} color="var(--slate-400)" style={{ position: 'absolute', right: 10, top: 13 }} />
+            <button style={S.pwToggle} tabIndex={-1} onClick={() => setShowPw(v => !v)} aria-label="Toggle password">
+              {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
           </div>
-          <span style={{ fontSize: 10, color: 'var(--slate-400)', marginTop: 4, display: 'block' }}>
-            8+ chars, 1 number, 1 symbol
-          </span>
-          {errors.password && <span style={{fontSize: 11, color: '#dc2626', marginTop: 4, display: 'block'}}>{errors.password}</span>}
-        </div>
-      </div>
+        </Field>
 
-      <button 
-        className="btn btn-primary" 
-        style={{ width: '100%', marginTop: 32, height: 52, fontWeight: 700, fontSize: 16, borderRadius: 14 }} 
-        disabled={loading}
-        onClick={() => validate() && onPass()}
-      >
-        {loading ? <><Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> CREATING ACCOUNT...</> : 'COMPLETE VERIFICATION'}
-      </button>
+        {/* CTA */}
+        <button
+          style={loading ? { ...S.cta, ...S.ctaDisabled } : S.cta}
+          disabled={loading}
+          onClick={() => validate() && onPass()}
+        >
+          {loading
+            ? <><Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> CREATING ACCOUNT...</>
+            : 'COMPLETE VERIFICATION'
+          }
+        </button>
+
+        {/* Safety policy disclaimer */}
+        <p style={S.policy}>🔒 Strict Safety Policy: One Aadhaar, One Person.</p>
+      </div>
     </div>
-  );
+  )
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 // MAIN VERIFICATION PAGE
 // ══════════════════════════════════════════════════════════════════════════════
 export default function Verification() {
   const { login } = useContext(AuthContext)
-  const [step, setStep]   = useState(1) // 1=aadhaar, 2=details
+  const [step, setStep] = useState(1);
+  const [aadhaarFaceB64, setAadhaarFaceB64] = useState(null);
+  const [selfieB64, setSelfieB64] = useState(null);
+  const [serviceStatus, setServiceStatus] = useState('checking') // checking|online|offline
+  
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -660,6 +998,19 @@ export default function Verification() {
   });
 
   const [regLoading, setRegLoading] = useState(false);
+
+  useEffect(() => {
+    async function checkHealth() {
+      try {
+        const res = await fetch(`${API}/verify/health`);
+        const data = await res.json();
+        setServiceStatus(data.python === 'offline' ? 'offline' : 'online');
+      } catch (err) {
+        setServiceStatus('offline');
+      }
+    }
+    checkHealth();
+  }, []);
 
   const handleDetailsPass = async () => {
     setRegLoading(true);
@@ -700,11 +1051,30 @@ export default function Verification() {
   const stepLabels = ['Face Match', 'Aadhaar', 'Profile']
 
   return (
-    <div className="verify-page">
-      <div className="verify-card" style={{ animation: 'fadeUp 0.5s ease', maxWidth: 520, borderRadius: 24 }}>
+    <div className="verify-page" style={{ alignItems: 'flex-start', overflowY: 'auto', paddingTop: 40, paddingBottom: 40 }}>
+      <div className="verify-card" style={{ animation: 'fadeUp 0.5s ease', maxWidth: 520, width: '100%', borderRadius: 24, marginLeft: 'auto', marginRight: 'auto' }}>
 
         {/* Logo + title */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -20, paddingRight: 10 }}>
+            <div style={{ 
+              display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', 
+              borderRadius: 20, 
+              background: serviceStatus === 'online' ? '#ecfdf5' : serviceStatus === 'checking' ? '#f0f9ff' : '#fef2f2',
+              border: `1px solid ${serviceStatus === 'online' ? '#10b981' : serviceStatus === 'checking' ? '#0ea5e9' : '#ef4444'}`,
+              transition: 'all 0.3s'
+            }}>
+              <div style={{ 
+                width: 6, height: 6, borderRadius: '50%', 
+                background: serviceStatus === 'online' ? '#10b981' : serviceStatus === 'checking' ? '#0ea5e9' : '#ef4444',
+                animation: serviceStatus === 'checking' ? 'pulse 1s infinite' : 'none'
+              }} />
+              <span style={{ fontSize: 9, fontWeight: 800, color: serviceStatus === 'online' ? '#065f46' : serviceStatus === 'checking' ? '#0369a1' : '#991b1b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Vision {serviceStatus}
+              </span>
+            </div>
+          </div>
+
           <div className="avatar-lg" onClick={() => window.location.href='/welcome'} style={{ margin: '0 auto 16px', background: 'var(--gradient-main)', color: 'white', cursor: 'pointer', boxShadow: '0 8px 32px rgba(124, 58, 237, 0.2)' }}>
             <Shield size={32} />
           </div>
@@ -750,10 +1120,18 @@ export default function Verification() {
         </div>
 
         {/* Step content */}
-        {step === 1 && <GenderVerificationStep onPass={() => setStep(2)} />}
+        {step === 1 && <LivenessStep serviceStatus={serviceStatus} onPass={(selfie) => {
+          setSelfieB64(selfie)
+          setStep(2)
+        }} />}
 
-        {step === 2 && <AadhaarStep onPass={(hash) => {
-          setFormData({ ...formData, aadhaarHash: hash })
+        {step === 2 && <AadhaarStep serviceStatus={serviceStatus} selfieB64={selfieB64} onPass={(data) => {
+          setFormData(prev => ({ 
+            ...prev, 
+            aadhaarHash: data.aadhaarHash,
+            name: data.ocr_data?.name || prev.name,
+            gender: data.ocr_data?.gender
+          }))
           setStep(3)
         }} />}
 
