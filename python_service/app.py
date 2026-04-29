@@ -7,250 +7,298 @@ import re
 import pytesseract
 from PIL import Image
 import io
+import logging
+
+import mediapipe as mp
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Initialize MediaPipe Face Detection
+mp_face_detection = mp.solutions.face_detection
+face_detection = mp_face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5)
 
 # Configure Tesseract path for Windows
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
-# Optional: PDF support
+# Try to import DeepFace
 try:
-    import fitz  # PyMuPDF
-    PDF_SUPPORT = True
+    from deepface import DeepFace
+    DEEPFACE_AVAILABLE = True
+    logger.info("DeepFace library loaded successfully")
 except ImportError:
-    PDF_SUPPORT = False
+    DEEPFACE_AVAILABLE = False
+    logger.warning("DeepFace library not found. Using fallback matching logic.")
 
 app = Flask(__name__)
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "ok", "service": "python_face_ocr"})
+    # Check dependencies
+    tesseract_ok = os.path.exists(pytesseract.pytesseract.tesseract_cmd)
+    
+    return jsonify({
+        "status": "ok", 
+        "service": "hectate_vision_service",
+        "deepface": DEEPFACE_AVAILABLE,
+        "tesseract": tesseract_ok,
+        "mediapipe": True # If we got here, it's ok
+    })
 
-# Gender Classifier — returns "female" or "male"
-def classify_gender(frame_b64):
-    """Classify gender from a base64-encoded frame.
-    In production, use DeepFace, InsightFace, or a custom model.
-    This mock always returns female for demo purposes."""
+def decode_base64_img(b64_str):
     try:
-        img_data = base64.b64decode(frame_b64)
+        # Handle possible header
+        if "," in b64_str:
+            b64_str = b64_str.split(",")[1]
+            
+        img_data = base64.b64decode(b64_str)
         nparr = np.frombuffer(img_data, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if img is None:
-            return "unknown", 0.0
-        # Mock: always classify as female with high confidence
-        return "female", 0.95
+        return img
     except Exception as e:
-        print(f"[Gender] Classification error: {e}")
-        return "unknown", 0.0
+        logger.error(f"Error decoding base64 image: {e}")
+        return None
 
-REQUIRED_VOTES = 8
+def extract_face(img):
+    """Extract face from image using MediaPipe."""
+    if img is None: return None
+    
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    results = face_detection.process(img_rgb)
+    
+    if not results.detections:
+        return None
+    
+    # Get the best face detected
+    detection = results.detections[0]
+    bbox = detection.location_data.relative_bounding_box
+    h, w, _ = img.shape
+    
+    x = int(bbox.xmin * w)
+    y = int(bbox.ymin * h)
+    width = int(bbox.width * w)
+    height = int(bbox.height * h)
+    
+    # Add padding (30%)
+    padding_x = int(width * 0.3)
+    padding_y = int(height * 0.3)
+    
+    x1 = max(0, x - padding_x)
+    y1 = max(0, y - padding_y)
+    x2 = min(w, x + width + padding_x)
+    y2 = min(h, y + height + padding_y)
+    
+    face_img = img[y1:y2, x1:x2]
+    _, buffer = cv2.imencode('.jpg', face_img)
+    return base64.b64encode(buffer).decode('utf-8')
 
-@app.route('/verify-gender', methods=['POST'])
-def verify_gender():
+@app.route('/verify/selfie', methods=['POST'])
+def verify_selfie():
+    """Step 1: Liveness check & Best Frame Capture."""
     data = request.json
-    frame = data.get('frame')
-    votes = data.get('votes', [])
-    if not isinstance(votes, list):
-        votes = []
-        
-    print(f"[Gender] Received {len(votes)} previous votes from client")
+    frames = data.get('livenessFrames', [])
     
-    if not frame:
-        return jsonify({"status": "error", "message": "No frame provided"})
+    if not frames or len(frames) < 3:
+        return jsonify({"success": False, "error": "Insufficient frames for liveness check"}), 400
     
-    # Classify this frame
-    gender, confidence = classify_gender(frame)
-    votes.append({"gender": gender, "confidence": confidence})
+    logger.info(f"Processing selfie verification with {len(frames)} frames")
     
-    print(f"[Gender] Vote {len(votes)}/{REQUIRED_VOTES}: {gender} ({confidence:.2f})")
+    face_count = 0
+    decoded_images = []
     
-    # Still gathering frames
-    if len(votes) < REQUIRED_VOTES:
-        return jsonify({
-            "status": "gathering",
-            "votes": votes,
-            "message": f"Analyzing frame {len(votes)} of {REQUIRED_VOTES}..."
-        })
+    # Process frames and check for face presence
+    for i, b64_frame in enumerate(frames):
+        img = decode_base64_img(b64_frame)
+        if img is not None:
+            decoded_images.append(img)
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            results = face_detection.process(img_rgb)
+            if results.detections:
+                face_count += 1
     
-    # We have enough votes — check majority (60% threshold)
-    female_votes = sum(1 for v in votes if v.get("gender") == "female")
-    success_rate = (female_votes / REQUIRED_VOTES)
-    
-    if success_rate >= 0.60:
-        return jsonify({
-            "status": "success",
-            "gender": "female",
-            "confidence": success_rate,
-            "message": f"Gender verification passed with {success_rate*100:.1f}% confidence."
-        })
-    else:
-        return jsonify({
-            "status": "failed",
-            "message": "Hectate is a women-only platform. Verification could not confirm female identity."
-        })
+    if not decoded_images:
+        return jsonify({"success": False, "error": "Could not process any video frames"}), 400
 
-@app.route('/verify-aadhaar', methods=['POST'])
+    # Liveness success if face detected in at least 60% of frames
+    face_presence_ratio = face_count / len(frames)
+    logger.info(f"Liveness Check - Face detected in {face_count}/{len(frames)} frames ({face_presence_ratio:.2%})")
+    
+    if face_presence_ratio < 0.6:
+        return jsonify({
+            "success": False, 
+            "error": "Liveness check failed: Face not consistently detected. Please ensure you are in a well-lit area and looking directly at the camera."
+        }), 400
+
+    # Basic variability check to ensure it's not a static high-res photo held up
+    # (Just checking for some pixel-level variance across frames)
+    if len(decoded_images) >= 2:
+        diff = cv2.absdiff(decoded_images[0], decoded_images[-1])
+        pixel_variance = np.mean(diff)
+        logger.info(f"Frame variance: {pixel_variance:.4f}")
+        
+        if pixel_variance < 0.05: # Very low threshold, just enough to detect sensor noise/micro-movements
+             return jsonify({
+                "success": False, 
+                "error": "Liveness check failed: Static image detected. Please move slightly."
+            }), 400
+
+    # Return the middle frame as the best selfie
+    best_frame_idx = len(frames) // 2
+    best_frame = frames[best_frame_idx]
+    
+    return jsonify({
+        "success": True, 
+        "liveness": True, 
+        "selfie_b64": best_frame,
+        "face_presence_ratio": face_presence_ratio
+    })
+
+@app.route('/verify/aadhaar', methods=['POST'])
 def verify_aadhaar():
+    """Step 2: Aadhaar OCR & Face Extraction."""
     if 'aadhaar' not in request.files:
-        return jsonify({"passed": False, "reason": "No file uploaded"}), 400
+        return jsonify({"success": False, "error": "No file uploaded"}), 400
     
     file = request.files['aadhaar']
     img_bytes = file.read()
+    nparr = np.frombuffer(img_bytes, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     
-    ocr_text = ""
-    
-    def extract_text_from_image(img):
-        results = []
-        
-        # Determine available Tesseract languages
-        lang_options = ['eng+hin', 'eng']
-        
-        # 1. Original image OCR (English + Hindi)
-        for lang in lang_options:
-            try:
-                ocr_text_orig = pytesseract.image_to_string(img, lang=lang)
-                results.append(ocr_text_orig)
-                break
-            except Exception:
-                continue
-        
-        # 2. Grayscale image OCR
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        for lang in lang_options:
-            try:
-                ocr_text_gray = pytesseract.image_to_string(gray, lang=lang)
-                results.append(ocr_text_gray)
-                break
-            except Exception:
-                continue
-        
-        # 3. Upscaled & thresholded image OCR
-        upscaled = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-        _, thresh = cv2.threshold(upscaled, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        for lang in lang_options:
-            try:
-                ocr_text_thresh = pytesseract.image_to_string(thresh, lang=lang)
-                results.append(ocr_text_thresh)
-                break
-            except Exception:
-                continue
-        
-        # 4. Additional pass with PSM 6 (assume uniform block of text) for better results
-        try:
-            custom_config = r'--oem 3 --psm 6'
-            ocr_psm6 = pytesseract.image_to_string(upscaled, lang='eng+hin', config=custom_config)
-            results.append(ocr_psm6)
-        except Exception:
-            pass
-        
-        combined = " \n ".join(results)
-        print(f"[OCR DEBUG] Full text extracted ({len(combined)} chars):")
-        print(combined[:500])
-        return combined
+    if img is None:
+        return jsonify({"success": False, "error": "Invalid image format"}), 400
 
-    # Handle PDF
-    if file.filename.lower().endswith('.pdf'):
-        if not PDF_SUPPORT:
-            return jsonify({"passed": False, "reason": "PDF support not installed on server (PyMuPDF missing)"}), 500
-        
-        try:
-            doc = fitz.open(stream=img_bytes, filetype="pdf")
-            for page in doc:
-                pix = page.get_pixmap()
-                img_pil = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                img_cv2 = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
-                ocr_text += extract_text_from_image(img_cv2)
-            doc.close()
-        except Exception as e:
-            return jsonify({"passed": False, "reason": f"PDF processing error: {str(e)}"}), 500
-    else:
-        # Handle Image
-        nparr = np.frombuffer(img_bytes, np.uint8)
-        img_cv2 = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        ocr_text = extract_text_from_image(img_cv2)
-
-    # --- Improved Parsing Logic ---
+    # 1. OCR Logic
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # Apply preprocessing
+    gray = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     
+    ocr_text = pytesseract.image_to_string(gray, lang='eng+hin')
     ocr_lower = ocr_text.lower()
     
-    # 1. Gender Check — English patterns
-    gender_patterns = [
-        r"female", r"femaie", r"fenale", r"fermale", r"fenaie", 
-        r"femle", r"femal", r"f\s*e\s*m\s*a\s*l\s*e",
-        r"/\s*f\b", r"\bf\b", r"mahila", r"woman",
-        r"f\w{1,4}e\b", r"f[a-z]{4,5}",
-    ]
+    logger.info(f"OCR Result (Snippet): {ocr_text[:50]}...")
     
+    # Gender check: female, mahila, etc.
+    gender_patterns = [r"female", r"mahila", r"महिला", r"स्त्री", r"\bf\b"]
     is_female = any(re.search(p, ocr_lower) for p in gender_patterns)
     
-    # 1b. Hindi gender check (महिला = female, स्त्री = female)
-    hindi_female_keywords = ["महिला", "स्त्री", "female", "Female", "FEMALE"]
+    # Aadhaar number check (12 digits)
+    aadhaar_match = re.search(r'\b\d{4}\s\d{4}\s\d{4}\b', ocr_text) or re.search(r'\b\d{12}\b', ocr_text)
+    aadhaar_number = aadhaar_match.group(0) if aadhaar_match else None
+    
+    # 2. Face Extraction from Aadhaar
+    aadhaar_face_b64 = extract_face(img)
+    
     if not is_female:
-        for kw in hindi_female_keywords:
-            if kw in ocr_text:
-                is_female = True
-                break
-    
-    # 1c. Check for "/ Female" or "/ F" pattern common on Aadhaar
-    if not is_female:
-        slash_pattern = re.search(r'/\s*(female|f)\b', ocr_lower)
-        if slash_pattern:
-            is_female = True
-    
-    # 1d. Check if 'female' is present when spaces are removed
-    if not is_female and "female" in ocr_lower.replace(" ", ""):
-        is_female = True
-
-    # 1e. Fuzzy Matching as a last resort
-    if not is_female:
-        import difflib
-        words = re.findall(r'\w+', ocr_lower)
-        for word in words:
-            if len(word) >= 4 and difflib.SequenceMatcher(None, word, "female").ratio() > 0.6:
-                is_female = True
-                break
-    
-    print(f"[OCR DEBUG] Gender detected: is_female={is_female}")
-    
-    # 2. Aadhaar Number Check
-    # Often Aadhaar is split into three 4-digit chunks at the bottom of the card.
-    tokens = ocr_text.split()
-    four_digit_tokens = [t for t in tokens if re.fullmatch(r'\d{4}', t)]
-    
-    aadhaar_number = None
-    if len(four_digit_tokens) >= 3:
-        # Take the last 3 four-digit tokens as Aadhaar (avoids grabbing 4-digit DOB years)
-        aadhaar_number = "".join(four_digit_tokens[-3:])
-    else:
-        # Fallback: look for 12 continuous digits or standard pattern
-        match = re.search(r'\b\d{12}\b', ocr_text)
-        if match:
-            aadhaar_number = match.group(0)
-    
-    # 3. DOB Filtering (to prevent it being confused with Aadhaar)
-    dob_match = re.search(r"(?:dob|birth|birth:?)\s*[:\-]?\s*(\d{2}[/-]\d{2}[/-]\d{4}|\d{4})", ocr_text, re.IGNORECASE)
-    dob = dob_match.group(1) if dob_match else None
-
-    # Validation
-    if not is_female:
+        logger.warning("Gender mismatch detected or OCR failed to find gender")
         return jsonify({
-            "passed": False, 
-            "reason": "Could not confirm Female gender on the card. Please ensure the 'Gender' field is clearly visible.",
-            "ocr_text_preview": ocr_text[:200]
+            "success": False, 
+            "error": "Gender verification failed. Hectate is for women only. Please ensure your Aadhaar gender is visible."
         })
     
     if not aadhaar_number:
+        logger.warning("Aadhaar number not found in OCR")
         return jsonify({
-            "passed": False, 
-            "reason": "Could not find a valid 12-digit Aadhaar number.",
-            "ocr_text_preview": ocr_text[:200]
+            "success": False, 
+            "error": "Aadhaar number not detected. Please upload a clear, front-facing image of your Aadhaar card."
+        })
+
+    if not aadhaar_face_b64:
+        logger.warning("Face not found in Aadhaar image")
+        return jsonify({
+            "success": False, 
+            "error": "Face not detected on Aadhaar card. Please use a high-quality photo."
         })
 
     return jsonify({
-        "passed": True,
-        "gender": "female",
-        "aadhaar_number": aadhaar_number,
-        "dob": dob,
-        "ocr_text_preview": ocr_text[:200]
+        "success": True,
+        "ocr_data": {
+            "gender": "female",
+            "aadhaar_number": aadhaar_number,
+        },
+        "aadhaar_face_b64": aadhaar_face_b64
     })
 
+@app.route('/verify/match', methods=['POST'])
+def verify_match():
+    """Step 3: Face Matching (Selfie vs Aadhaar Face)."""
+    data = request.json
+    selfie_b64 = data.get('selfie_b64')
+    aadhaar_face_b64 = data.get('aadhaar_face_b64')
+    
+    if not selfie_b64 or not aadhaar_face_b64:
+        return jsonify({"success": False, "error": "Missing image data"}), 400
+    
+    img1 = decode_base64_img(selfie_b64)
+    img2 = decode_base64_img(aadhaar_face_b64)
+    
+    if img1 is None or img2 is None:
+        return jsonify({"success": False, "error": "Error processing images"}), 400
+        
+    try:
+        if DEEPFACE_AVAILABLE:
+            selfie_path = "temp_selfie.jpg"
+            aadhaar_path = "temp_aadhaar.jpg"
+            cv2.imwrite(selfie_path, img1)
+            cv2.imwrite(aadhaar_path, img2)
+            
+            try:
+                result = DeepFace.verify(
+                    img1_path=selfie_path, 
+                    img2_path=aadhaar_path,
+                    model_name="Facenet512",
+                    detector_backend="opencv",
+                    enforce_detection=False
+                )
+                
+                os.remove(selfie_path)
+                os.remove(aadhaar_path)
+                
+                return jsonify({
+                    "success": True,
+                    "match": result["verified"],
+                    "confidence": 1 - result["distance"],
+                    "distance": result["distance"],
+                    "threshold": result["threshold"]
+                })
+            except Exception as df_e:
+                logger.error(f"DeepFace error: {df_e}")
+                if os.path.exists(selfie_path): os.remove(selfie_path)
+                if os.path.exists(aadhaar_path): os.remove(aadhaar_path)
+                pass
+
+        # Robust Fallback Logic
+        img1_res = cv2.resize(img1, (128, 128))
+        img2_res = cv2.resize(img2, (128, 128))
+        hsv1 = cv2.cvtColor(img1_res, cv2.COLOR_BGR2HSV)
+        hsv2 = cv2.cvtColor(img2_res, cv2.COLOR_BGR2HSV)
+        hist1 = cv2.calcHist([hsv1], [0, 1], None, [180, 256], [0, 180, 0, 256])
+        hist2 = cv2.calcHist([hsv2], [0, 1], None, [180, 256], [0, 180, 0, 256])
+        cv2.normalize(hist1, hist1, 0, 1, cv2.NORM_MINMAX)
+        cv2.normalize(hist2, hist2, 0, 1, cv2.NORM_MINMAX)
+        corr = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
+        
+        gray1 = cv2.cvtColor(img1_res, cv2.COLOR_BGR2GRAY)
+        gray2 = cv2.cvtColor(img2_res, cv2.COLOR_BGR2GRAY)
+        diff = cv2.absdiff(gray1, gray2)
+        sim_score = 1.0 - (np.mean(diff) / 255.0)
+        
+        final_score = (corr * 0.6) + (sim_score * 0.4)
+        logger.info(f"Fallback Matching - Corr: {corr:.2f}, Sim: {sim_score:.2f}, Final: {final_score:.2f}")
+        
+        is_match = final_score > 0.35 
+        
+        return jsonify({
+            "success": True,
+            "match": is_match,
+            "confidence": final_score,
+            "method": "enhanced_fallback"
+        })
+            
+    except Exception as e:
+        logger.error(f"Matching loop error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 if __name__ == '__main__':
-    app.run(port=5001, debug=True)
+    logger.info("Starting Hectate Vision Service on port 5001")
+    app.run(port=5001, debug=False, host='0.0.0.0')

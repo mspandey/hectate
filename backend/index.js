@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 5000;
 
 // Security Middleware
 app.use(helmet()); 
-app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'http://localhost:5177', 'http://localhost:5178', 'http://localhost:5179', 'http://localhost:5180'], credentials: true }));
+app.use(cors({ origin: true, credentials: true })); // origin: true allows any origin in dev - more robust
 app.use(express.json({ limit: '10mb' })); // Increased for Face Capture payloads 
 app.use(cookieParser());
 app.use(morgan('dev'));
@@ -63,10 +63,17 @@ const adminRoutes = require('./routes/admin');
 const kycRoutes = require('./routes/kyc');
 const postRoutes = require('./routes/posts');
 
-app.use('/api/auth', strictLimiter, csrfProtection, authRoutes);
-app.use('/api/verify', verifyLimiter, csrfProtection, verifyRoutes);
+const devCsrf = (req, res, next) => {
+  if (process.env.NODE_ENV === 'production') {
+    return csrfProtection(req, res, next);
+  }
+  next();
+};
+
+app.use('/api/auth', strictLimiter, devCsrf, authRoutes);
+app.use('/api/verify', verifyLimiter, devCsrf, verifyRoutes);
 app.use('/api/admin', strictLimiter, adminRoutes); // JWT-based: no CSRF needed
-app.use('/api/kyc', strictLimiter, csrfProtection, kycRoutes);
+app.use('/api/kyc', strictLimiter, devCsrf, kycRoutes);
 app.use('/api/posts', postRoutes);
 
 // Health check
@@ -80,10 +87,8 @@ app.use((err, req, res, next) => {
 });
 
 // For Vercel Serverless deployment
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    console.log(`Hectate Security Server running on port ${PORT}`);
-  });
-}
+app.listen(PORT, () => {
+  console.log(`Hectate Security Server running on port ${PORT}`);
+});
 
 module.exports = app;

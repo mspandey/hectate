@@ -19,15 +19,34 @@ export default function TypeAnimation({ text, speed = 50, onComplete }) {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'var(--bg-main, #050505)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 9999
+      position: 'fixed', 
+      inset: 0, 
+      background: 'var(--bg-main, #050505)',
+      display: 'flex', 
+      flexDirection: 'column',
+      alignItems: 'center', 
+      justifyContent: 'center',
+      zIndex: 9999,
+      color: 'var(--text-main, #ffffff)'
     }}>
       <h1 style={{
-        fontFamily: 'var(--font-display)', fontSize: 'clamp(24px, 5vw, 42px)',
-        fontWeight: 300, color: 'var(--slate-800)', letterSpacing: '0.05em'
+        fontFamily: 'var(--font-display, serif)', 
+        fontSize: 'clamp(24px, 5vw, 42px)',
+        fontWeight: 300, 
+        letterSpacing: '0.05em',
+        textAlign: 'center',
+        padding: '0 20px'
       }}>
-        {displayedText}<span style={{ borderRight: '2px solid var(--purple-500)', marginLeft: '2px', animation: 'blink 0.7s infinite' }} />
+        {displayedText}
+        <span style={{ 
+          display: 'inline-block',
+          width: '2px',
+          height: '1em',
+          background: 'var(--hectate-pink, #EC1C6E)', 
+          marginLeft: '4px', 
+          verticalAlign: 'middle',
+          animation: 'blink 0.7s infinite' 
+        }} />
       </h1>
       <style>{`
         @keyframes blink { 0%, 100% { opacity: 1 } 50% { opacity: 0 } }

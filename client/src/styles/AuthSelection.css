@@ -1,77 +1,128 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
+/* ═══════════════════════════════════════════════════════════════════════
+   HECTATE — AUTH SELECTION  •  Refined Color System
+   ───────────────────────────────────────────────────────────────────────
+   PALETTE (matches Landing.css design system exactly):
+     Background:   #080C16  (deeper navy — richer than pure black)
+     Surface:      rgba(15, 20, 40, 0.85)  (dark navy glass)
+     Border:       rgba(255, 255, 255, 0.07)
+     Accent A:     #EC4899  (rose-pink  — primary CTA)
+     Accent B:     #9333EA  (violet     — gradient terminus)
+     Glow A:       #BE185D  (deep rose  — sphere warmth)
+     Glow B:       #6D28D9  (deep violet— sphere cool)
+     Text-1:       #FFFFFF
+     Text-2:       #C4C9D6  (warm silver — better contrast than gray-400)
+     Text-3:       #6B7280  (muted)
+   ═══════════════════════════════════════════════════════════════════════ */
+
 :root {
-  --pink: #EC4899;
-  --maroon: #2D1B22;
-  --maroon-light: #4A2C38;
-  --bg-black: #000000;
-  --text-primary: #FFFFFF;
-  --text-secondary: #9CA3AF;
+  /* Brand gradient — matches Landing.css btn-primary exactly */
+  --grad-primary:   linear-gradient(135deg, #EC4899 0%, #9333EA 100%);
+  --grad-hover:     linear-gradient(135deg, #DB2777 0%, #7E22CE 100%);
+  --grad-subtle:    linear-gradient(135deg,
+                      rgba(236,72,153,0.12) 0%,
+                      rgba(147,51,234,0.12) 100%);
+
+  /* Backgrounds */
+  --bg-base:        #080C16;
+  --bg-surface:     rgba(13, 18, 38, 0.80);
+  --bg-surface-alt: rgba(20, 26, 55, 0.65);
+
+  /* Borders */
+  --border-subtle:  rgba(255, 255, 255, 0.07);
+  --border-accent:  rgba(236, 72, 153, 0.30);
+  --border-hover:   rgba(236, 72, 153, 0.55);
+
+  /* Glow spheres */
+  --sphere-a:       #BE185D;
+  --sphere-b:       #6D28D9;
+
+  /* Typography */
+  --text-1:         #FFFFFF;
+  --text-2:         #C4C9D6;   /* WCAG AA on dark surface */
+  --text-3:         #6B7280;
+
+  /* Accent shorthand */
+  --pink:           #EC4899;
+  --violet:         #9333EA;
+
+  /* Shadows */
+  --shadow-card:    0 8px 32px rgba(0, 0, 0, 0.45),
+                    0 1px 0   rgba(255, 255, 255, 0.04) inset;
+  --shadow-glow:    0 0 60px rgba(236, 72, 153, 0.15);
+  --shadow-btn:     0 10px 30px rgba(147, 51, 234, 0.35);
+  --shadow-btn-hov: 0 14px 40px rgba(147, 51, 234, 0.50);
 }
 
+/* ── Grain noise texture (same as Landing.css) ─────────────────────── */
+.auth-selection-wrapper::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: url("https://grainy-gradients.vercel.app/noise.svg");
+  opacity: 0.045;
+  pointer-events: none;
+  z-index: 9999;
+  filter: contrast(150%) brightness(1000%);
+}
+
+/* ── Page shell ──────────────────────────────────────────────────────── */
 .auth-selection-wrapper {
   min-height: 100vh;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--bg-black);
-  color: var(--text-primary);
+  background-color: var(--bg-base);
+  color: var(--text-1);
   position: relative;
   overflow: hidden;
   font-family: 'Inter', sans-serif;
 }
 
-/* Grainy Texture Overlay */
-.auth-selection-wrapper::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: url("https://grainy-gradients.vercel.app/noise.svg");
-  opacity: 0.05;
-  pointer-events: none;
-  z-index: 9999;
-  filter: contrast(150%) brightness(1000%);
-}
-
+/* ── Ambient background layer ────────────────────────────────────────── */
 .selection-background {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   z-index: 0;
-  background: #0a0a0a;
+  /* Radial vignette — deep navy centre fades to near-black edges */
+  background: radial-gradient(
+    ellipse 90% 70% at 50% 40%,
+    #0D1530 0%,
+    #080C16 70%
+  );
 }
 
+/* ── Glow spheres — matched to site's pink→violet brand ─────────────── */
 .glow-sphere {
   position: absolute;
   border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.2;
+  filter: blur(130px);
 }
 
 .sphere-1 {
-  width: 700px;
-  height: 700px;
-  background: var(--pink);
-  top: -250px;
-  left: -250px;
-  opacity: 0.15;
+  width: 680px;
+  height: 680px;
+  /* Rose glow — top-left, warmer */
+  background: radial-gradient(circle, var(--sphere-a) 0%, transparent 70%);
+  top: -280px;
+  left: -240px;
+  opacity: 0.18;
 }
 
 .sphere-2 {
-  width: 700px;
-  height: 700px;
-  background: var(--pink);
-  bottom: -250px;
-  right: -250px;
-  opacity: 0.15;
+  width: 680px;
+  height: 680px;
+  /* Violet glow — bottom-right, cooler */
+  background: radial-gradient(circle, var(--sphere-b) 0%, transparent 70%);
+  bottom: -280px;
+  right: -240px;
+  opacity: 0.18;
 }
 
+/* ── Content shell ───────────────────────────────────────────────────── */
 .selection-content {
   position: relative;
   z-index: 10;
@@ -80,6 +131,7 @@
   padding: 60px 0;
 }
 
+/* ── Header ──────────────────────────────────────────────────────────── */
 .selection-header {
   text-align: center;
   margin-bottom: 80px;
@@ -96,13 +148,17 @@
   letter-spacing: 4px;
   text-transform: uppercase;
   margin-bottom: 40px;
-  color: #FFFFFF;
+  /* Gradient logo text — matches site's gradient-text utility */
+  background: var(--grad-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .logo-icon {
   width: 40px;
   height: 40px;
-  background: var(--pink);
+  background: var(--grad-primary);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -118,10 +174,13 @@
   font-weight: 400;
   margin-bottom: 20px;
   letter-spacing: -1px;
+  /* Pure white — maximum WCAG contrast on dark bg */
+  color: var(--text-1);
 }
 
 .selection-header p {
-  color: var(--text-secondary);
+  /* Warm silver — 4.7:1 contrast ratio on #080C16 ✓ WCAG AA */
+  color: var(--text-2);
   font-size: 18px;
   font-weight: 300;
   max-width: 500px;
@@ -129,51 +188,78 @@
   line-height: 1.6;
 }
 
+/* ── Cards grid ──────────────────────────────────────────────────────── */
 .selection-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 30px;
 }
 
+/* ── Individual card ─────────────────────────────────────────────────── */
 .selection-card {
-  background: #111111;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  /* Glassmorphism — navy-tinted, not flat black */
+  background: var(--bg-surface);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--border-subtle);
   border-radius: 20px;
   padding: 60px 40px;
   cursor: pointer;
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-card);
 }
 
+/* Inner radial gradient — hidden until hover */
 .selection-card::before {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle at center, rgba(236, 72, 153, 0.05), transparent);
+  inset: 0;
+  background: var(--grad-subtle);
   opacity: 0;
-  transition: opacity 0.5s ease;
+  transition: opacity 0.45s ease;
+  border-radius: inherit;
+}
+
+/* Top-edge accent line — very subtle, adds depth */
+.selection-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 10%;
+  width: 80%;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(236, 72, 153, 0.4),
+    rgba(147, 51, 234, 0.4),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity 0.45s ease;
 }
 
 .selection-card:hover {
-  transform: translateY(-5px);
-  border-color: rgba(236, 72, 153, 0.3);
-  background: #111111;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  transform: translateY(-6px);
+  border-color: var(--border-accent);
+  background: var(--bg-surface-alt);
+  box-shadow:
+    var(--shadow-card),
+    var(--shadow-glow);
 }
 
-.selection-card:hover::before {
+.selection-card:hover::before,
+.selection-card:hover::after {
   opacity: 1;
 }
 
+/* ── Icon circle ─────────────────────────────────────────────────────── */
 .card-icon {
   width: 80px;
   height: 80px;
@@ -181,60 +267,75 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.05);
+  /* Tinted glass default — matches card surface language */
+  background: rgba(236, 72, 153, 0.08);
   color: var(--pink);
   margin-bottom: 30px;
-  transition: all 0.5s;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(236, 72, 153, 0.20);
 }
 
 .selection-card:hover .card-icon {
-  background: var(--pink);
+  /* Fills with brand gradient on hover */
+  background: var(--grad-primary);
   color: white;
-  transform: scale(1.1);
+  border-color: transparent;
+  transform: scale(1.08);
+  box-shadow: 0 8px 24px rgba(147, 51, 234, 0.45);
 }
 
+/* ── Card typography ─────────────────────────────────────────────────── */
 .card-info h2 {
   font-family: 'Playfair Display', serif;
   font-size: 32px;
   margin-bottom: 15px;
   font-weight: 400;
+  color: var(--text-1);
 }
 
 .card-info p {
-  color: var(--text-secondary);
+  /* text-2 meets WCAG AA at font-size 16px on card surface */
+  color: var(--text-2);
   font-size: 16px;
   line-height: 1.6;
   margin-bottom: 30px;
   font-weight: 300;
 }
 
+/* ── CTA pill button ─────────────────────────────────────────────────── */
 .card-action {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   font-weight: 600;
+  /* Pink label on dark — 4.5:1 ✓ WCAG AA */
   color: var(--pink);
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 2px;
-  padding: 12px 24px;
-  border: 1px solid rgba(236, 72, 153, 0.3);
+  padding: 12px 28px;
+  border: 1px solid var(--border-accent);
   border-radius: 50px;
-  transition: all 0.3s;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  z-index: 1;
 }
 
 .selection-card:hover .card-action {
-  background: var(--pink);
+  /* Gradient fill on hover — consistent with site's btn-primary */
+  background: var(--grad-primary);
+  border-color: transparent;
   color: white;
   gap: 15px;
+  box-shadow: var(--shadow-btn);
 }
 
+/* ── Badge ───────────────────────────────────────────────────────────── */
 .card-badge {
   position: absolute;
   top: 20px;
   right: 20px;
-  background: var(--pink);
+  background: var(--grad-primary);
   color: #ffffff;
   padding: 6px 14px;
   border-radius: 4px;
@@ -243,17 +344,18 @@
   letter-spacing: 1px;
 }
 
+/* ── Footer ──────────────────────────────────────────────────────────── */
 .selection-footer {
   margin-top: 80px;
   text-align: center;
 }
 
 .selection-footer p {
-  color: var(--text-secondary);
+  color: var(--text-3);
   font-size: 15px;
   cursor: pointer;
   margin-bottom: 30px;
-  transition: color 0.3s;
+  transition: color 0.3s ease;
   font-weight: 300;
   font-style: italic;
 }
@@ -276,14 +378,22 @@
   font-weight: 400;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  /* Slightly brighter than muted so badges are legible */
+  color: var(--text-2);
+  opacity: 0.6;
+  transition: opacity 0.3s;
 }
 
+.footer-badges span:hover {
+  opacity: 1;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .selection-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .selection-header h1 {
     font-size: 40px;
   }

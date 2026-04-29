@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useContext, useState } from 'react'
+import { useContext, useState, useEffect } from 'react'
 
 // Layout & UI
 import Sidebar from './components/layout/Sidebar'
@@ -88,12 +88,12 @@ const AppRoutes = () => {
       <CursorRipple />
       <Routes>
         {/* Public routes */}
-        <Route path="/" element={isVerified ? <Navigate to="/dashboard" /> : <Navigate to="/welcome" />} />
+        <Route path="/" element={isVerified ? <Navigate to="/feed" /> : <Navigate to="/welcome" />} />
         <Route path="/welcome" element={<Landing />} />
         <Route path="/join" element={<AuthSelection />} />
-        <Route path="/auth" element={isVerified ? <Navigate to="/dashboard" /> : <Auth />} />
+        <Route path="/auth" element={isVerified ? <Navigate to="/feed" /> : <Auth />} />
         <Route path="/login" element={<Navigate to="/auth" />} />
-        <Route path="/verify" element={isVerified ? <Navigate to="/dashboard" /> : <Verification />} />
+        <Route path="/verify" element={isVerified ? <Navigate to="/feed" /> : <Verification />} />
         
         {/* Informational Pages */}
         <Route path="/about/feed" element={<FeedInfo />} />

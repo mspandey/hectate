@@ -115,101 +115,115 @@ router.post('/college-id', upload.single('idCard'), async (req, res) => {
   return res.json({ success: true, message: 'College ID verified' });
 });
 
-// 3. Face Liveness proxy to Python Service
-const FACE_SERVICE_URL = process.env.FACE_VERIFY_SERVICE_URL || 'http://127.0.0.1:5001';
-const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'http://127.0.0.1:5001';
-
-router.post('/face', async (req, res) => {
-  const { userId, livenessFrames, selfieFrame, documentPhoto } = req.body;
+// 3. Selfie & Liveness (Step 1)
+router.post('/selfie', async (req, res) => {
+  const { livenessFrames } = req.body;
 
   try {
-    const response = await axios.post(`${FACE_SERVICE_URL}/verify-face`, {
-      liveness_frames: livenessFrames,
-      selfie_frame: selfieFrame,
-      document_photo: documentPhoto
+    const response = await axios.post(`${PYTHON_SERVICE_URL}/verify/selfie`, {
+      livenessFrames: livenessFrames
     }, { timeout: 30000 });
 
-    const result = response.data;
-    if (result.success && result.gender === 'female') {
-      await db.verificationAttempt.create({ data: { userId, method: 'face', status: 'success', matchScore: result.match_score, liveness: result.liveness, ipAddress: req.ip } });
-      await db.user.update({ where: { id: userId }, data: { verificationMethod: 'face' } });
-      return res.json({ success: true, message: 'Face verification passed' });
-    } else {
-      await db.verificationAttempt.create({ data: { userId, method: 'face', status: 'failed', matchScore: result.match_score, liveness: result.liveness, ipAddress: req.ip } });
-      return res.status(400).json({ error: 'FACE_VERIFY_FAIL', message: 'Failed gender or liveness checks.' });
-    }
-  } catch (error) {
-    const msg = error.response ? error.response.data.message : 'Face verification service unavailable';
-    return res.status(400).json({ error: 'FACE_API_ERROR', message: msg });
-  }
-});
-
-// ── 4. Gender Identity Check (webcam frame → Python gender classifier) ────────
-router.post('/gender-check', async (req, res) => {
-  const { frame, votes } = req.body;
-  console.log(`[NODE] Gender check request. Votes received: ${Array.isArray(votes) ? votes.length : 'none'}`);
-  
-  try {
-    const response = await axios.post(`${PYTHON_SERVICE_URL}/verify-gender`, { frame, votes: votes || [] }, { timeout: 30000 });
-    console.log(`[NODE] Gender check response status: ${response.data.status}, Votes returned: ${response.data.votes?.length || 0}`);
     return res.json(response.data);
-  } catch (err) {
-    console.error('Gender check error:', err.message, err.response?.data || '');
-    return res.status(500).json({ error: 'Gender service offline', detail: err.message });
+  } catch (error) {
+    console.error(`[NODE] Selfie Error:`, error.message);
+    const msg = error.response ? error.response.data.error : 'Selfie verification service unavailable';
+    return res.status(error.response?.status || 400).json({ success: false, error: msg });
   }
 });
 
-// ── 5. Aadhaar Card OCR (image upload → Python Tesseract OCR) ─────────────────
-const aadhaarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+// 3.1 Face Match (Step 3)
+router.post('/match', async (req, res) => {
+  const { selfie_b64, aadhaar_face_b64 } = req.body;
 
-router.post('/aadhaar-ocr', aadhaarUpload.single('aadhaar'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    const response = await axios.post(`${PYTHON_SERVICE_URL}/verify/match`, {
+      selfie_b64,
+      aadhaar_face_b64
+    }, { timeout: 30000 });
+
+    return res.json(response.data);
+  } catch (error) {
+    console.error(`[NODE] Match Error:`, error.message);
+    const msg = error.response ? error.response.data.error : 'Matching service unavailable';
+    return res.status(error.response?.status || 400).json({ success: false, error: msg });
+  }
+});
+
+// ── 4. Gender Check — DEPRECATED (returns 410) ──────────────────────────────────────
+router.post('/gender-check', async (req, res) => {
+  console.warn('[NODE] /gender-check called — this endpoint is deprecated.');
+  return res.status(410).json({
+    status: 'deprecated',
+    message: 'Face-based gender detection has been removed. Gender is now verified via Aadhaar OCR (/api/verify/aadhaar-ocr).'
+  });
+});
+
+const aadhaarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'http://127.0.0.1:5001';
+
+// ── 0. Health Check Proxy ──────────────────────────────────────────────────
+router.get('/health', async (req, res) => {
+  try {
+    const response = await axios.get(`${PYTHON_SERVICE_URL}/health`, { timeout: 2000 });
+    return res.json({ node: 'ok', python: response.data });
+  } catch (error) {
+    return res.status(503).json({ 
+      node: 'ok', 
+      python: 'offline', 
+      error: error.message,
+      help: "Ensure the Python Vision Service is running on port 5001."
+    });
+  }
+});
+
+// 5. Aadhaar OCR + Face Match (Step 2)
+router.post('/aadhaar-match', aadhaarUpload.single('aadhaar'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No Aadhaar file uploaded' });
+  const { selfie_b64, userId } = req.body;
 
   try {
     const form = new FormData();
     form.append('aadhaar', req.file.buffer, { filename: req.file.originalname, contentType: req.file.mimetype });
+    if (selfie_b64) {
+      form.append('selfie_b64', selfie_b64);
+    }
 
-    console.log(`[NODE] Proxying Aadhaar OCR to ${PYTHON_SERVICE_URL}/verify-aadhaar`);
-    const response = await axios.post(`${PYTHON_SERVICE_URL}/verify-aadhaar`, form, {
+    console.log(`[NODE] Proxying Aadhaar Match to ${PYTHON_SERVICE_URL}/verify/aadhaar`);
+    const response = await axios.post(`${PYTHON_SERVICE_URL}/verify/aadhaar`, form, {
       headers: form.getHeaders(),
       timeout: 30000
     });
-    console.log(`[NODE] Python service responded with status: ${response.status}`);
 
     const result = response.data;
 
     // ----- Check Aadhaar Uniqueness -----
-    if (result.passed && result.aadhaar_number) {
+    if (result.success && result.ocr_data?.aadhaar_number) {
       const AADHAAR_SECRET = process.env.AADHAAR_SECRET || 'Hectate_aadhaar_secret_dev_key';
-      const aadhaarHash = crypto.createHmac('sha256', AADHAAR_SECRET).update(result.aadhaar_number.replace(/\s/g, '')).digest('hex');
+      const aadhaarHash = crypto.createHmac('sha256', AADHAAR_SECRET).update(result.ocr_data.aadhaar_number.replace(/\s/g, '')).digest('hex');
       
       const existingUser = await db.user.findFirst({ where: { aadhaarHash } });
-      const existingWoman = await db.womanProfile.findFirst({ where: { aadhaarRef: aadhaarHash } });
-
-      if (existingUser || existingWoman) {
+      if (existingUser && existingUser.id !== userId) {
+        result.success = false;
         result.passed = false;
-        result.reason = "An account with this Aadhaar number already exists. One Aadhaar registration per account.";
+        result.error = "An account with this Aadhaar number already exists.";
       } else {
         result.aadhaarHash = aadhaarHash;
       }
     }
 
-    // Log the attempt if userId provided
-    if (req.body?.userId) {
-      const status = result.passed ? 'success' : 'failed';
+    // Log the attempt
+    if (userId) {
       await db.verificationAttempt.create({
-        data: { userId: req.body.userId, method: 'aadhaar_ocr', status, ocrResult: result.ocr_text_preview || '', ipAddress: req.ip }
+        data: { userId, method: 'aadhaar_match', status: result.success ? 'success' : 'failed', ocrResult: result.error || 'Success', ipAddress: req.ip }
       });
     }
 
     return res.json(result);
   } catch (err) {
-    console.error(`[NODE] Aadhaar OCR Error:`, err.message);
-    if (err.response) {
-      console.error(`[NODE] Python Response Data:`, err.response.data);
-      console.error(`[NODE] Python Response Status:`, err.response.status);
-    }
-    return res.status(500).json({ passed: false, error: 'Verification system issue', detail: 'The ID verification service is currently unreachable. Please ensure the Python backend is running.' });
+    console.error(`[NODE] Aadhaar Match Error:`, err.message);
+    const msg = err.response?.data?.error || 'Verification system unreachable. Please ensure the Python service is running.';
+    return res.status(err.response?.status || 500).json({ success: false, error: msg });
   }
 });
 

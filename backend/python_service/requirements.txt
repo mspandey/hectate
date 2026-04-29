@@ -1,11 +1,32 @@
+# Hectate Python Verification Service — Requirements
+# Install: pip install -r requirements.txt
+
+# Core framework
 flask
 flask-cors
+
+# Image processing
 opencv-python
-mediapipe
-numpy
 Pillow
+numpy
+
+# OCR
 pytesseract
+
+# Face detection and verification
+# deepface includes VGG-Face, ArcFace, Facenet512 support
 deepface
+retina-face           # RetinaFace detector (much better than OpenCV for angles/lighting)
+tf-keras              # TensorFlow backend for deepface models
+
+# Liveness / face mesh
+mediapipe
+
+# PDF rendering (for Aadhaar PDF uploads)
 pymupdf
+
+# Sentiment analysis
 vaderSentiment
-tf-keras
+
+# Utilities
+scikit-learn          # Used internally by deepface for distance calculations
