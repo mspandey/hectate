@@ -11,7 +11,7 @@ require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL        = process.env.SUPABASE_URL        || 'https://ywfftwifgjufybhhmaqn.supabase.co';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3ZmZ0d2lmZ2p1ZnliaGhtYXFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNDgxNDAsImV4cCI6MjA5MjYyNDE0MH0.5aSRZS6PteObRaS0J7TDBBfty_-QG4ZcRAVLvIf2bzc'; // fallback to anon key if not set
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 if (!SUPABASE_SERVICE_KEY) {
   console.warn('[Supabase] ⚠️  SUPABASE_SERVICE_KEY is not set in backend/.env — Supabase sync is DISABLED.');
