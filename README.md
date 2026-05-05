@@ -13,8 +13,6 @@
 
 ![Stack](https://img.shields.io/badge/stack-Python%20%2B%20React%2FVite-00BFFF?style=for-the-badge&labelColor=030810)
 ![Access](https://img.shields.io/badge/access-WOMEN%20ONLY-FF006E?style=for-the-badge&labelColor=030810)
-![License](https://img.shields.io/badge/license-MIT-444?style=for-the-badge&labelColor=030810)
-![Hackathon](https://img.shields.io/badge/🏆_Hackathon-2025-FFD700?style=for-the-badge&labelColor=030810)
 
 <br/>
 
