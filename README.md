@@ -21,7 +21,7 @@
 <br/>
 
 ```
-[ UPLOAD AADHAAR ] → [ OCR EXTRACTION ] → [ LIVENESS CHECK ] → [ BIOMETRIC MATCH ] → [ ✓ ACCESS GRANTED ]
+[ LIVENESS CHECK ] → [ BIOMETRIC MATCH ] → [ UPLOAD AADHAAR ] → [ OCR EXTRACTION ] → [ ✓ ACCESS GRANTED ]
 ```
 
 </div>
@@ -101,23 +101,24 @@ Online spaces for women are routinely weaponised against them. Hectate is built 
 │                    HECTATE ENTRY PROTOCOL 2.1                   │
 └─────────────────────────────────────────────────────────────────┘
 
-  STEP 1 ──▶  Document Upload
-              User uploads Aadhaar card (image or PDF)
-              PyMuPDF extracts raw content from PDF uploads
-
-  STEP 2 ──▶  OCR Extraction (pytesseract)
-              Reads: Full Name · Aadhaar Number · Gender Field
-              Gender field MUST read "Female" — any other value = REJECTED
-
-  STEP 3 ──▶  Liveness Detection (MediaPipe)
+  STEP 1 ──▶   Liveness Detection (MediaPipe)
               68-point 3D face landmark tracking via front camera
               Blink, turn, nod prompts defeat static photos & deepfakes
               Live session token generated on pass
 
-  STEP 4 ──▶  Biometric Match (RetinaFace + ArcFace)
+  STEP 2 ──▶   Biometric Match (RetinaFace + ArcFace)
               Selfie compared against document photo
               Cosine similarity threshold: ≥ 0.68
               Low-light fallback: RetinaFace re-processes under enhanced exposure
+OCR Extraction (pytesseract)
+              Reads: Full Name · Aadhaar Number · Gender Field
+              Gender field MUST read "Female" — any other value = REJECTED
+
+  STEP 3 ──▶  Document Upload User uploads Aadhaar card (image or PDF) PyMuPDF extracts raw content from PDF uploads
+
+  STEP 4 ──▶ OCR Extraction (pytesseract)
+              Reads: Full Name · Aadhaar Number · Gender Field
+              Gender field MUST read "Female" — any other value = REJECTED
 
   RESULT ──▶  All 4 stages pass → JWT issued → Dashboard unlocked
               Any stage fails → Session terminated · No data retained
@@ -129,9 +130,8 @@ Online spaces for women are routinely weaponised against them. Hectate is built 
 
 ### ⚖️ Know Your Rights — Digital Law Library
 
-A searchable, curated repository of Indian laws protecting women — built for **readability**, not legal jargon.
+A curated repository of Indian laws protecting women — built for **readability**, not legal jargon.
 
-- **Keyword Search** — type "harassment", "workplace", "property" → instant legal citations
 - **In-App PDF Viewer** — read official government documents without leaving the secure Hectate environment  
 - **Raw Preview Snippets** — quick-read summaries before diving into full legislation
 - **Laws Covered:**
@@ -239,59 +239,7 @@ SENTIMENT_TOXICITY_THRESHOLD=-0.5
 
 ---
 
-## 📁 Project Structure
-
-```
-hectate/
-├── backend/
-│   ├── app.py                  # Flask entry point
-│   ├── verification/
-│   │   ├── ocr.py              # pytesseract pipeline
-│   │   ├── liveness.py         # MediaPipe face mesh
-│   │   └── biometric.py        # DeepFace + RetinaFace
-│   ├── moderation/
-│   │   └── sentiment.py        # vaderSentiment integration
-│   ├── legal/
-│   │   └── library.py          # Law search & PDF rendering
-│   └── requirements.txt
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── VerificationGate/   # face-api.js + camera
-│   │   │   ├── LegalHub/           # Law library UI
-│   │   │   ├── Community/          # Moderated feed
-│   │   │   └── LandingPage/        # Spline 3D + GSAP
-│   │   └── App.jsx
-│   ├── package.json
-│   └── vite.config.js
-│
-└── README.md
-```
-
----
-
-## 🤝 Contributing
-
-Hectate is built for women, by a team that believes technology can be the equaliser. Contributions are welcome — but all contributors must agree to our Code of Conduct and mission alignment.
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -m 'Add: your feature'`)
-4. Push to branch (`git push origin feature/your-feature`)
-5. Open a Pull Request
-
----
-
-## 📜 License
-
-Distributed under the MIT License. See `LICENSE` for details.
-
----
-
 <div align="center">
-
-**Built with conviction at Hackathon 2025**
 
 *"Safety is not a feature. It's the foundation."*
 
