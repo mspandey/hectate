@@ -110,9 +110,6 @@ Online spaces for women are routinely weaponised against them. Hectate is built 
               Selfie compared against document photo
               Cosine similarity threshold: ≥ 0.68
               Low-light fallback: RetinaFace re-processes under enhanced exposure
-OCR Extraction (pytesseract)
-              Reads: Full Name · Aadhaar Number · Gender Field
-              Gender field MUST read "Female" — any other value = REJECTED
 
   STEP 3 ──▶  Document Upload User uploads Aadhaar card (image or PDF) PyMuPDF extracts raw content from PDF uploads
 
