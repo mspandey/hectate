@@ -11,7 +11,6 @@
 
 <br/>
 
-![Version](https://img.shields.io/badge/version-2.1--STABLE-00FF9D?style=for-the-badge&labelColor=030810&color=00FF9D)
 ![Stack](https://img.shields.io/badge/stack-Python%20%2B%20React%2FVite-00BFFF?style=for-the-badge&labelColor=030810)
 ![Access](https://img.shields.io/badge/access-WOMEN%20ONLY-FF006E?style=for-the-badge&labelColor=030810)
 ![License](https://img.shields.io/badge/license-MIT-444?style=for-the-badge&labelColor=030810)
@@ -39,17 +38,6 @@ Online spaces for women are routinely weaponised against them. Hectate is built 
 - 🛡 No fake persona survives the biometric check.  
 - ⚖️ Every user knows their legal rights, on demand.  
 - 🤝 Every advocate on the platform is verified.
-
----
-
-## 🎬 Live Demo
-
-<!-- Replace with your actual demo GIF / screenshot -->
-<div align="center">
-<img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcDVuN2Z6dXlhMW9hejR5bnh0a2xhbXpnZGF2eTd4MzV5dGFyaWRqZCZlcD12MV9pbnRlcm5hbGdfZ2lmX2J5X2lkJmN0PWc/xT9IgG50Lg7rusOKuU/giphy.gif" width="80%" alt="Hectate Demo" style="border-radius:8px;"/>
-</div>
-
-> 🎥 *Full demo video:* [Watch on YouTube](#) | [Download MP4](#)
 
 ---
 
