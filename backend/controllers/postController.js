@@ -160,7 +160,8 @@ exports.createPost = async (req, res) => {
     if (!isFlagged) {
       try {
         const axios = require('axios');
-        const sentimentRes = await axios.post('http://localhost:5001/analyze-sentiment', { 
+        const pythonServiceUrl = process.env.PYTHON_SERVICE_URL || 'http://localhost:5001';
+        const sentimentRes = await axios.post(`${pythonServiceUrl}/analyze-sentiment`, { 
           text: content.trim() 
         }, { timeout: 2000 });
         

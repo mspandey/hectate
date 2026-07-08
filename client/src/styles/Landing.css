@@ -1471,3 +1471,21 @@ body:not(.dark) .mobile-nav-item:hover {
 body:not(.dark) .theme-toggle-wrapper {
   /* Already themed via ThemeToggle.css body.dark selectors */
 }
+
+.banner-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(36px, 5vw, 48px);
+  margin: 0 0 16px 0;
+  position: relative;
+  z-index: 1;
+}
+
+.banner-text {
+  font-size: 16px;
+  color: var(--text-secondary);
+  max-width: 700px;
+  margin: 0 auto 32px auto;
+  line-height: 1.6;
+  position: relative;
+  z-index: 1;
+}

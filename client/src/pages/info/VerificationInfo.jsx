@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Fingerprint, Cpu, ShieldCheck, UserCheck, Eye, Smartphone } from 'lucide-react';
 import '../../styles/Landing.css';
 import LandingNavbar from '../../components/layout/LandingNavbar';
+import LandingFooter from '../../components/layout/LandingFooter';
 
 const VerificationInfo = () => {
   return (
@@ -71,45 +72,11 @@ const VerificationInfo = () => {
           <p className="banner-text">
             A verified community is a safe community. By ensuring every member is exactly who they say they are, we eliminate the primary source of online threats.
           </p>
-          <Link to="/join" className="btn-secondary">Get Verified</Link>
+          <Link to="/join" className="btn-secondary" style={{position: 'relative', zIndex: 2}}>Get Verified</Link>
         </div>
       </section>
 
-      <footer className="landing-footer">
-        <div className="footer-grid">
-          <div className="footer-brand">
-            <h3 className="footer-logo">HECTATE</h3>
-            <p className="footer-tagline">
-              Hectate — Where your safety isn't optional. 
-              The first 100% verified space for women.
-            </p>
-          </div>
-          <div className="footer-links">
-            <h4>Platform</h4>
-            <ul>
-              <li><Link to="/about/feed">Community Feed</Link></li>
-              <li><Link to="/about/lawyers">Lawyer Directory</Link></li>
-            </ul>
-          </div>
-          <div className="footer-links">
-            <h4>Trust</h4>
-            <ul>
-              <li><Link to="/about/verification">Verification Guide</Link></li>
-              <li><Link to="/about/privacy">Privacy Policy</Link></li>
-              <li><Link to="/about/terms">Terms of Service</Link></li>
-            </ul>
-          </div>
-          <div className="footer-links">
-            <h4>Contact</h4>
-            <ul>
-              <li>hectate2026@gmail.com</li>
-            </ul>
-          </div>
-        </div>
-        <div className="footer-bottom">
-          © 2024 HECTATE INDIA. ALL RIGHTS RESERVED.
-        </div>
-      </footer>
+      <LandingFooter />
     </div>
   );
 };
