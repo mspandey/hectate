@@ -22,12 +22,24 @@
   --theme-text-primary: #1f2937;
   --theme-text-secondary: #4b5563;
   --highlight-bg: rgba(236, 72, 153, 0.08);
+  --glass-panel-bg: rgba(255, 255, 255, 0.7);
+  --glass-panel-border: rgba(0, 0, 0, 0.08);
+  --glass-panel-shadow: 0 30px 60px rgba(0,0,0,0.05);
+  --policy-card-bg: rgba(255, 255, 255, 0.8);
+  --policy-card-border: rgba(0, 0, 0, 0.05);
+  --policy-card-shadow: 0 20px 40px rgba(0,0,0,0.05);
 }
 
 .dark {
   --theme-text-primary: #ffffff;
   --theme-text-secondary: #d1d5db;
   --highlight-bg: rgba(236, 72, 153, 0.15);
+  --glass-panel-bg: rgba(15, 23, 42, 0.4);
+  --glass-panel-border: rgba(255, 255, 255, 0.08);
+  --glass-panel-shadow: 0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+  --policy-card-bg: rgba(15, 23, 42, 0.4);
+  --policy-card-border: rgba(255, 255, 255, 0.06);
+  --policy-card-shadow: 0 20px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 
 ::selection {
@@ -332,7 +344,7 @@ body::before {
   line-height: 0.95;
   font-weight: 800;
   margin: 0;
-  color: #FFFFFF;
+  color: var(--theme-text-primary) !important;
   letter-spacing: -2px;
   text-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }

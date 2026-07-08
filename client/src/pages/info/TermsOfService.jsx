@@ -48,7 +48,7 @@ const TermsOfService = () => {
   }, []);
 
   return (
-    <div className="landing-container" style={{ background: '#05070A', minHeight: '100vh', color: 'white', position: 'relative', overflow: 'hidden' }}>
+    <div className="landing-container terms-page" style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
       <LandingNavbar />
       
       {/* Ultra Premium Ambient Background */}
@@ -93,7 +93,9 @@ const TermsOfService = () => {
             fontFamily: 'Playfair Display, serif',
             fontWeight: '800',
             lineHeight: '1.1',
-            letterSpacing: '-1px'
+            letterSpacing: '-1px',
+            textAlign: 'center',
+            color: 'var(--theme-text-primary)'
           }}>
             Terms of <span style={{ 
               background: 'linear-gradient(135deg, #F9A8D4 0%, #D8B4FE 50%, #93C5FD 100%)', 
@@ -105,11 +107,12 @@ const TermsOfService = () => {
           
           <p style={{ 
             fontSize: '22px', 
-            color: '#9CA3AF', 
+            color: 'var(--theme-text-secondary)', 
             margin: '0 auto 40px',
             maxWidth: '600px',
             lineHeight: '1.6',
-            fontWeight: '300'
+            fontWeight: '300',
+            textAlign: 'center'
           }}>
             By joining Hectate, you enter into a covenant of sisterhood, safety, and mutual respect. Please read these terms carefully.
           </p>
@@ -118,14 +121,14 @@ const TermsOfService = () => {
             display: 'inline-flex',
             alignItems: 'center',
             padding: '12px 24px',
-            background: 'rgba(255,255,255,0.03)',
+            background: 'var(--glass-panel-bg)',
             borderRadius: '16px',
-            border: '1px solid rgba(255,255,255,0.05)',
-            fontSize: '14px', color: '#6B7280', 
+            border: '1px solid var(--glass-panel-border)',
+            fontSize: '14px', color: 'var(--theme-text-secondary)', 
             letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: '500',
             backdropFilter: 'blur(10px)'
           }}>
-            Last Updated: <span style={{ color: '#F3F4F6', marginLeft: '8px', fontWeight: '600' }}>October 12, 2026</span>
+            Last Updated: <span style={{ color: 'var(--theme-text-primary)', marginLeft: '8px', fontWeight: '600' }}>October 12, 2026</span>
           </div>
         </div>
       </section>
@@ -146,13 +149,13 @@ const TermsOfService = () => {
           <aside style={{ flex: '0 0 300px', position: 'sticky', top: '120px', display: 'none' }} className="terms-sidebar">
             <div className="glass-panel" style={{ 
               padding: '32px', 
-              background: 'rgba(15, 23, 42, 0.4)', 
+              background: 'var(--glass-panel-bg)', 
               borderRadius: '24px', 
-              border: '1px solid rgba(255,255,255,0.08)', 
+              border: '1px solid var(--glass-panel-border)', 
               backdropFilter: 'blur(20px)',
-              boxShadow: '0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)'
+              boxShadow: 'var(--glass-panel-shadow)'
             }}>
-              <h3 style={{ fontFamily: 'Playfair Display', fontSize: '22px', marginBottom: '28px', color: '#fff', fontWeight: '600' }}>Contents</h3>
+              <h3 style={{ fontFamily: 'Playfair Display', fontSize: '22px', marginBottom: '28px', color: 'var(--theme-text-primary)', fontWeight: '600' }}>Contents</h3>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {[
                   { id: 'eligibility', icon: CheckCircle, label: 'Eligibility & Verification', color: '#EC4899' },
@@ -165,14 +168,14 @@ const TermsOfService = () => {
                       onClick={() => scrollToSection(item.id)}
                       className={`nav-button ${activeSection === item.id ? 'active' : ''}`}
                       style={{ 
-                        background: activeSection === item.id ? 'rgba(255,255,255,0.05)' : 'transparent', 
+                        background: activeSection === item.id ? 'var(--glass-panel-bg)' : 'transparent', 
                         border: '1px solid',
-                        borderColor: activeSection === item.id ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        borderColor: activeSection === item.id ? 'var(--glass-panel-border)' : 'transparent',
                         padding: '12px 16px', 
                         cursor: 'pointer',
                         borderRadius: '12px',
                         display: 'flex', alignItems: 'center', gap: '14px',
-                        color: activeSection === item.id ? '#F3F4F6' : '#9CA3AF',
+                        color: activeSection === item.id ? 'var(--theme-text-primary)' : 'var(--theme-text-secondary)',
                         fontSize: '15px', fontWeight: activeSection === item.id ? '600' : '500',
                         transition: 'all 0.3s ease', textAlign: 'left', width: '100%'
                       }}
@@ -190,19 +193,19 @@ const TermsOfService = () => {
             
             <div className="glass-panel support-panel" style={{ 
               marginTop: '24px', padding: '28px', 
-              background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.4) 0%, rgba(30, 58, 138, 0.1) 100%)', 
+              background: 'var(--glass-panel-bg)', 
               borderRadius: '24px', 
-              border: '1px solid rgba(59, 130, 246, 0.15)', 
+              border: '1px solid var(--glass-panel-border)', 
               backdropFilter: 'blur(20px)',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)'
+              boxShadow: 'var(--glass-panel-shadow)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                 <div style={{ padding: '8px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px' }}>
                   <Mail size={20} color="#60A5FA" />
                 </div>
-                <h4 style={{ margin: 0, color: '#F3F4F6', fontSize: '17px', fontWeight: '600' }}>Questions?</h4>
+                <h4 style={{ margin: 0, color: 'var(--theme-text-primary)', fontSize: '17px', fontWeight: '600' }}>Questions?</h4>
               </div>
-              <p style={{ color: '#9CA3AF', fontSize: '14px', lineHeight: 1.7, margin: '0 0 20px 0' }}>
+              <p style={{ color: 'var(--theme-text-secondary)', fontSize: '14px', lineHeight: 1.7, margin: '0 0 20px 0' }}>
                 Our legal team is available to help clarify any of these terms for your peace of mind.
               </p>
               <Link to="/contact" className="support-link" style={{ 
@@ -294,13 +297,13 @@ const TermsOfService = () => {
             ].map((section) => (
               <div key={section.id} id={section.id} className="premium-policy-block" style={{ 
                 padding: '56px', 
-                background: 'rgba(15, 23, 42, 0.4)', 
+                background: 'var(--policy-card-bg)', 
                 borderRadius: '32px', 
-                border: '1px solid rgba(255,255,255,0.06)', 
+                border: '1px solid var(--policy-card-border)', 
                 position: 'relative', 
                 overflow: 'hidden', 
                 backdropFilter: 'blur(20px)',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)'
+                boxShadow: 'var(--policy-card-shadow)'
               }}>
                 {/* Subtle top gradient line */}
                 <div style={{ position: 'absolute', top: 0, left: '10%', right: '10%', height: '1px', background: `radial-gradient(ellipse at center, ${section.color}80 0%, transparent 70%)` }}></div>
@@ -308,7 +311,7 @@ const TermsOfService = () => {
                 {/* Glowing orb behind icon */}
                 <div style={{ position: 'absolute', top: '40px', left: '40px', width: '100px', height: '100px', background: section.bgGlow, filter: 'blur(40px)', borderRadius: '50%', pointerEvents: 'none' }}></div>
                 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '36px', position: 'relative', zIndex: 2 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '20px', marginBottom: '32px', position: 'relative', zIndex: 2 }}>
                   <div style={{ 
                     width: '64px', height: '64px', borderRadius: '20px', 
                     background: `linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)`, 
@@ -319,11 +322,11 @@ const TermsOfService = () => {
                   }}>
                     <section.icon size={32} strokeWidth={1.5} />
                   </div>
-                  <h2 style={{ color: '#F9FAFB', margin: 0, fontFamily: 'Playfair Display, serif', fontSize: '36px', fontWeight: '700', letterSpacing: '-0.5px' }}>
+                  <h2 style={{ color: 'var(--theme-text-primary)', margin: 0, fontFamily: 'Playfair Display, serif', fontSize: '36px', fontWeight: '700', letterSpacing: '-0.5px' }}>
                     {section.title}
                   </h2>
                 </div>
-                <div className="policy-text-content" style={{ color: '#D1D5DB', lineHeight: 1.8, fontSize: '18px', fontWeight: '300', position: 'relative', zIndex: 2 }}>
+                <div className="policy-text-content" style={{ textAlign: 'center', color: 'var(--theme-text-secondary)', lineHeight: 1.8, fontSize: '18px', fontWeight: '300', position: 'relative', zIndex: 2 }}>
                   {section.content}
                 </div>
               </div>
@@ -353,14 +356,14 @@ const TermsOfService = () => {
         
         .premium-policy-block:hover {
           transform: translateY(-6px) scale(1.01);
-          box-shadow: 0 30px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
-          background: rgba(30, 41, 59, 0.5) !important;
-          border-color: rgba(255,255,255,0.12) !important;
+          box-shadow: var(--glass-panel-shadow);
         }
 
         .premium-list {
           padding-left: 0;
           list-style: none;
+          display: inline-block;
+          text-align: left;
         }
 
         .premium-list li {
@@ -382,13 +385,13 @@ const TermsOfService = () => {
         }
 
         .premium-list li strong {
-          color: #F3F4F6;
+          color: var(--theme-text-primary);
           font-weight: 600;
         }
 
         .nav-button:hover {
-          background: rgba(255,255,255,0.03) !important;
-          color: #F3F4F6 !important;
+          background: var(--glass-panel-bg) !important;
+          color: var(--theme-text-primary) !important;
         }
         
         .nav-button:hover svg {
