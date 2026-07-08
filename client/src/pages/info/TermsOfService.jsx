@@ -1,65 +1,409 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
+import { FileText, CheckCircle, AlertTriangle, Scale, Users, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
 import '../../styles/Landing.css';
 import LandingNavbar from '../../components/layout/LandingNavbar';
 import LandingFooter from '../../components/layout/LandingFooter';
 
 const TermsOfService = () => {
-  return (
-    <div className="landing-container">
-      <LandingNavbar />
+  const [activeSection, setActiveSection] = useState('eligibility');
+  const [mounted, setMounted] = useState(false);
 
-      <section className="hero-v2" style={{minHeight: '40vh', alignItems: 'center', justifyContent: 'center', textAlign: 'center'}}>
-        <div className="hero-text-content" style={{maxWidth: 800, margin: '0 auto'}}>
-          <div className="hero-badge" style={{margin: '0 auto 20px'}}>
-            <FileText size={16} /> <span>Community Contract</span>
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const scrollToSection = (id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      const offset = 120; // Account for fixed header
+      const bodyRect = document.body.getBoundingClientRect().top;
+      const elementRect = element.getBoundingClientRect().top;
+      const elementPosition = elementRect - bodyRect;
+      const offsetPosition = elementPosition - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+      setActiveSection(id);
+    }
+  };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = ['eligibility', 'conduct', 'content', 'enforcement'];
+      const scrollPosition = window.scrollY + 180;
+
+      for (const section of sections) {
+        const element = document.getElementById(section);
+        if (element && element.offsetTop <= scrollPosition && (element.offsetTop + element.offsetHeight) > scrollPosition) {
+          setActiveSection(section);
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <div className="landing-container" style={{ background: '#05070A', minHeight: '100vh', color: 'white', position: 'relative', overflow: 'hidden' }}>
+      <LandingNavbar />
+      
+      {/* Ultra Premium Ambient Background */}
+      <div className="ambient-bg" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
+        <div style={{ position: 'absolute', top: '-10%', left: '10%', width: '40vw', height: '40vw', background: 'radial-gradient(circle, rgba(147, 51, 234, 0.12) 0%, transparent 60%)', filter: 'blur(80px)', animation: 'float 20s ease-in-out infinite' }} />
+        <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: '50vw', height: '50vw', background: 'radial-gradient(circle, rgba(236, 72, 153, 0.08) 0%, transparent 60%)', filter: 'blur(100px)', animation: 'float 25s ease-in-out infinite reverse' }} />
+        <div style={{ position: 'absolute', top: '40%', left: '-20%', width: '30vw', height: '30vw', background: 'radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%)', filter: 'blur(90px)', animation: 'float 22s ease-in-out infinite 2s' }} />
+      </div>
+
+      {/* Grid Pattern Overlay */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px)', backgroundSize: '50px 50px', pointerEvents: 'none', zIndex: 0, opacity: 0.5 }}></div>
+
+      <section className="hero-v2" style={{ 
+        minHeight: '60vh', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        textAlign: 'center', 
+        position: 'relative', 
+        zIndex: 1, 
+        paddingTop: '180px',
+        paddingBottom: '80px',
+        opacity: mounted ? 1 : 0,
+        transform: mounted ? 'translateY(0)' : 'translateY(20px)',
+        transition: 'all 1s cubic-bezier(0.16, 1, 0.3, 1)'
+      }}>
+        <div className="hero-text-content" style={{ maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div className="premium-badge" style={{ 
+            display: 'inline-flex', alignItems: 'center', gap: '8px', 
+            padding: '8px 16px', borderRadius: '100px', 
+            background: 'linear-gradient(90deg, rgba(236, 72, 153, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%)',
+            border: '1px solid rgba(236, 72, 153, 0.3)',
+            color: '#F9A8D4', fontSize: '13px', fontWeight: '600', letterSpacing: '1px',
+            marginBottom: '32px',
+            boxShadow: '0 0 20px rgba(236, 72, 153, 0.2), inset 0 0 10px rgba(236, 72, 153, 0.1)'
+          }}>
+            <ShieldCheck size={16} /> <span>LEGAL AGREEMENT</span>
           </div>
-          <h1 className="hero-title-v2" style={{fontSize: 64}}>
-            Terms of <span className="gradient-text">Service</span>
+          
+          <h1 style={{ 
+            fontSize: 'clamp(56px, 8vw, 84px)', 
+            marginBottom: '24px',
+            fontFamily: 'Playfair Display, serif',
+            fontWeight: '800',
+            lineHeight: '1.1',
+            letterSpacing: '-1px'
+          }}>
+            Terms of <span style={{ 
+              background: 'linear-gradient(135deg, #F9A8D4 0%, #D8B4FE 50%, #93C5FD 100%)', 
+              WebkitBackgroundClip: 'text', 
+              WebkitTextFillColor: 'transparent',
+              display: 'inline-block'
+            }}>Service</span>
           </h1>
-          <p className="hero-description-v2">
-            By joining hectate, you enter into a covenant of sisterhood, safety, and mutual respect.
+          
+          <p style={{ 
+            fontSize: '22px', 
+            color: '#9CA3AF', 
+            margin: '0 auto 40px',
+            maxWidth: '600px',
+            lineHeight: '1.6',
+            fontWeight: '300'
+          }}>
+            By joining Hectate, you enter into a covenant of sisterhood, safety, and mutual respect. Please read these terms carefully.
           </p>
+          
+          <div style={{ 
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '12px 24px',
+            background: 'rgba(255,255,255,0.03)',
+            borderRadius: '16px',
+            border: '1px solid rgba(255,255,255,0.05)',
+            fontSize: '14px', color: '#6B7280', 
+            letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: '500',
+            backdropFilter: 'blur(10px)'
+          }}>
+            Last Updated: <span style={{ color: '#F3F4F6', marginLeft: '8px', fontWeight: '600' }}>October 12, 2026</span>
+          </div>
         </div>
       </section>
 
-      <section className="section-v2" style={{backgroundColor: 'transparent'}}>
-        <div className="content-centered" style={{maxWidth: 900, textAlign: 'left'}}>
-          <div className="policy-block" style={{marginBottom: 60, padding: '40px', background: 'rgba(255,255,255,0.02)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)'}}>
-            <h2 style={{color: 'white', marginBottom: 20, fontFamily: 'Playfair Display', display: 'flex', alignItems: 'center', gap: 15}}>
-              <CheckCircle className="gradient-text" size={28} /> 1. Eligibility
-            </h2>
-            <p style={{color: 'var(--text-gray)', lineHeight: 1.8, fontSize: 16}}>
-              hectate is exclusively for women. Verification of gender via our AI-powered Aadhaar analysis is mandatory for access to all community features.
-            </p>
-          </div>
+      <section style={{ padding: '0 5% 120px', position: 'relative', zIndex: 1 }}>
+        <div style={{ 
+          maxWidth: '1200px', 
+          margin: '0 auto', 
+          display: 'flex', 
+          gap: '60px', 
+          alignItems: 'flex-start',
+          opacity: mounted ? 1 : 0,
+          transform: mounted ? 'translateY(0)' : 'translateY(30px)',
+          transition: 'all 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.2s'
+        }}>
+          
+          {/* Sidebar Navigation */}
+          <aside style={{ flex: '0 0 300px', position: 'sticky', top: '120px', display: 'none' }} className="terms-sidebar">
+            <div className="glass-panel" style={{ 
+              padding: '32px', 
+              background: 'rgba(15, 23, 42, 0.4)', 
+              borderRadius: '24px', 
+              border: '1px solid rgba(255,255,255,0.08)', 
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)'
+            }}>
+              <h3 style={{ fontFamily: 'Playfair Display', fontSize: '22px', marginBottom: '28px', color: '#fff', fontWeight: '600' }}>Contents</h3>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {[
+                  { id: 'eligibility', icon: CheckCircle, label: 'Eligibility & Verification', color: '#EC4899' },
+                  { id: 'conduct', icon: Users, label: 'Community Conduct', color: '#3B82F6' },
+                  { id: 'content', icon: FileText, label: 'Content Ownership', color: '#A78BFA' },
+                  { id: 'enforcement', icon: AlertTriangle, label: 'Enforcement', color: '#EF4444' }
+                ].map((item) => (
+                  <li key={item.id}>
+                    <button 
+                      onClick={() => scrollToSection(item.id)}
+                      className={`nav-button ${activeSection === item.id ? 'active' : ''}`}
+                      style={{ 
+                        background: activeSection === item.id ? 'rgba(255,255,255,0.05)' : 'transparent', 
+                        border: '1px solid',
+                        borderColor: activeSection === item.id ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        padding: '12px 16px', 
+                        cursor: 'pointer',
+                        borderRadius: '12px',
+                        display: 'flex', alignItems: 'center', gap: '14px',
+                        color: activeSection === item.id ? '#F3F4F6' : '#9CA3AF',
+                        fontSize: '15px', fontWeight: activeSection === item.id ? '600' : '500',
+                        transition: 'all 0.3s ease', textAlign: 'left', width: '100%'
+                      }}
+                    >
+                      <item.icon size={18} style={{ 
+                        color: activeSection === item.id ? item.color : '#6B7280',
+                        transition: 'all 0.3s ease' 
+                      }} />
+                      {item.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            <div className="glass-panel support-panel" style={{ 
+              marginTop: '24px', padding: '28px', 
+              background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.4) 0%, rgba(30, 58, 138, 0.1) 100%)', 
+              borderRadius: '24px', 
+              border: '1px solid rgba(59, 130, 246, 0.15)', 
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ padding: '8px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px' }}>
+                  <Mail size={20} color="#60A5FA" />
+                </div>
+                <h4 style={{ margin: 0, color: '#F3F4F6', fontSize: '17px', fontWeight: '600' }}>Questions?</h4>
+              </div>
+              <p style={{ color: '#9CA3AF', fontSize: '14px', lineHeight: 1.7, margin: '0 0 20px 0' }}>
+                Our legal team is available to help clarify any of these terms for your peace of mind.
+              </p>
+              <Link to="/contact" className="support-link" style={{ 
+                color: '#60A5FA', fontSize: '14px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: '600',
+                transition: 'all 0.2s ease'
+              }}>
+                Contact Support <ArrowRight size={16} />
+              </Link>
+            </div>
+          </aside>
 
-          <div className="policy-block" style={{marginBottom: 60, padding: '40px', background: 'rgba(255,255,255,0.02)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)'}}>
-            <h2 style={{color: 'white', marginBottom: 20, fontFamily: 'Playfair Display', display: 'flex', alignItems: 'center', gap: 15}}>
-              <AlertTriangle className="gradient-text" size={28} /> 2. Prohibited Conduct
-            </h2>
-            <p style={{color: 'var(--text-gray)', lineHeight: 1.8, fontSize: 16}}>
-              Harassment, stalking, commercial solicitation, or sharing of personal data belonging to other members is strictly prohibited and will result in immediate and permanent expulsion.
-            </p>
-          </div>
+          {/* Main Content */}
+          <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '48px' }} className="terms-content">
+            
+            {[
+              {
+                id: 'eligibility',
+                icon: CheckCircle,
+                title: '1. Eligibility & Verification',
+                color: '#EC4899',
+                bgGlow: 'rgba(236, 72, 153, 0.15)',
+                content: (
+                  <>
+                    <p style={{ marginBottom: '24px' }}>
+                      Hectate is exclusively built for women. To maintain the integrity and safety of our community, verification of gender via our AI-powered Aadhaar analysis is mandatory for access to all community features.
+                    </p>
+                    <ul className="premium-list">
+                      <li>You must be at least 18 years of age to register.</li>
+                      <li>You agree to provide accurate and authentic identification documents during the verification process.</li>
+                      <li>Any attempt to circumvent or forge verification will result in a permanent network-wide ban.</li>
+                    </ul>
+                  </>
+                )
+              },
+              {
+                id: 'conduct',
+                icon: Users,
+                title: '2. Community Conduct',
+                color: '#3B82F6',
+                bgGlow: 'rgba(59, 130, 246, 0.15)',
+                content: (
+                  <>
+                    <p style={{ marginBottom: '24px' }}>
+                      We hold our members to the highest standards of empathy and respect. The following conduct is strictly prohibited:
+                    </p>
+                    <ul className="premium-list">
+                      <li><strong>Harassment & Bullying:</strong> Any form of abuse, targeted harassment, or stalking.</li>
+                      <li><strong>Doxxing:</strong> Sharing personal data, locations, or private information of other members.</li>
+                      <li><strong>Commercial Solicitation:</strong> Spamming or unauthorized advertising within community spaces.</li>
+                      <li><strong>Hate Speech:</strong> Discriminatory language based on race, religion, sexual orientation, or disability.</li>
+                    </ul>
+                  </>
+                )
+              },
+              {
+                id: 'content',
+                icon: FileText,
+                title: '3. Content Ownership',
+                color: '#A78BFA',
+                bgGlow: 'rgba(167, 139, 250, 0.15)',
+                content: (
+                  <>
+                    <p style={{ marginBottom: '24px' }}>
+                      Your voice belongs to you. You retain full ownership of any original content, stories, or advice you post in the Community Feed.
+                    </p>
+                    <p>
+                      However, by posting on Hectate, you grant us a non-exclusive, worldwide, royalty-free license to display, distribute, and protect that content within our secure ecosystem. We will never sell your content to third-party data brokers.
+                    </p>
+                  </>
+                )
+              },
+              {
+                id: 'enforcement',
+                icon: AlertTriangle,
+                title: '4. Enforcement & Termination',
+                color: '#F43F5E',
+                bgGlow: 'rgba(244, 63, 94, 0.15)',
+                content: (
+                  <>
+                    <p style={{ marginBottom: '24px' }}>
+                      Hectate reserves the right to suspend or permanently terminate any account that violates these terms, with or without prior notice. 
+                    </p>
+                    <p>
+                      In cases of severe violations, particularly those involving physical threats or severe doxxing, we reserve the right to cooperate with local law enforcement agencies to ensure the physical safety of our members.
+                    </p>
+                  </>
+                )
+              }
+            ].map((section) => (
+              <div key={section.id} id={section.id} className="premium-policy-block" style={{ 
+                padding: '56px', 
+                background: 'rgba(15, 23, 42, 0.4)', 
+                borderRadius: '32px', 
+                border: '1px solid rgba(255,255,255,0.06)', 
+                position: 'relative', 
+                overflow: 'hidden', 
+                backdropFilter: 'blur(20px)',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)'
+              }}>
+                {/* Subtle top gradient line */}
+                <div style={{ position: 'absolute', top: 0, left: '10%', right: '10%', height: '1px', background: `radial-gradient(ellipse at center, ${section.color}80 0%, transparent 70%)` }}></div>
+                
+                {/* Glowing orb behind icon */}
+                <div style={{ position: 'absolute', top: '40px', left: '40px', width: '100px', height: '100px', background: section.bgGlow, filter: 'blur(40px)', borderRadius: '50%', pointerEvents: 'none' }}></div>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '36px', position: 'relative', zIndex: 2 }}>
+                  <div style={{ 
+                    width: '64px', height: '64px', borderRadius: '20px', 
+                    background: `linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)`, 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                    color: section.color, 
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    boxShadow: `0 10px 20px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.2)`
+                  }}>
+                    <section.icon size={32} strokeWidth={1.5} />
+                  </div>
+                  <h2 style={{ color: '#F9FAFB', margin: 0, fontFamily: 'Playfair Display, serif', fontSize: '36px', fontWeight: '700', letterSpacing: '-0.5px' }}>
+                    {section.title}
+                  </h2>
+                </div>
+                <div className="policy-text-content" style={{ color: '#D1D5DB', lineHeight: 1.8, fontSize: '18px', fontWeight: '300', position: 'relative', zIndex: 2 }}>
+                  {section.content}
+                </div>
+              </div>
+            ))}
 
-
-
-          <div className="policy-block" style={{marginBottom: 60, padding: '40px', background: 'rgba(255,255,255,0.02)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)'}}>
-            <h2 style={{color: 'white', marginBottom: 20, fontFamily: 'Playfair Display', display: 'flex', alignItems: 'center', gap: 15}}>
-              <FileText className="gradient-text" size={28} /> 3. Content Ownership
-            </h2>
-            <p style={{color: 'var(--text-gray)', lineHeight: 1.8, fontSize: 16}}>
-              You retain ownership of the content you post in the Community Feed. However, by posting, you grant hectate a license to display that content within our protected ecosystem.
-            </p>
           </div>
         </div>
       </section>
 
       <LandingFooter />
+
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-30px) scale(1.05); }
+        }
+        
+        @media (min-width: 1024px) {
+          .terms-sidebar {
+            display: block !important;
+          }
+        }
+        
+        .premium-policy-block {
+          transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        .premium-policy-block:hover {
+          transform: translateY(-6px) scale(1.01);
+          box-shadow: 0 30px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+          background: rgba(30, 41, 59, 0.5) !important;
+          border-color: rgba(255,255,255,0.12) !important;
+        }
+
+        .premium-list {
+          padding-left: 0;
+          list-style: none;
+        }
+
+        .premium-list li {
+          position: relative;
+          padding-left: 36px;
+          margin-bottom: 16px;
+        }
+
+        .premium-list li::before {
+          content: '→';
+          position: absolute;
+          left: 0;
+          top: 0;
+          color: #9CA3AF;
+          font-family: monospace;
+          font-size: 20px;
+          line-height: 1.5;
+          opacity: 0.5;
+        }
+
+        .premium-list li strong {
+          color: #F3F4F6;
+          font-weight: 600;
+        }
+
+        .nav-button:hover {
+          background: rgba(255,255,255,0.03) !important;
+          color: #F3F4F6 !important;
+        }
+        
+        .nav-button:hover svg {
+          opacity: 1 !important;
+        }
+
+        .support-link:hover {
+          color: #93C5FD !important;
+          gap: 12px !important;
+        }
+      `}</style>
     </div>
   );
 };
 
 export default TermsOfService;
+
+

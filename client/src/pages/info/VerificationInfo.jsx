@@ -39,22 +39,22 @@ const VerificationInfo = () => {
           <h2 className="section-title">The <span className="gradient-text">Hectate Standard</span></h2>
           <p className="section-sub">Why we verify every single member.</p>
           
-          <div className="feature-list-centered">
-            <div className="feature-item">
+          <div className="feature-list-centered" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '40px', maxWidth: '1000px', width: '100%', alignItems: 'start' }}>
+            <div className="feature-item" style={{ maxWidth: 'none' }}>
               <div className="social-icon">
                 <Smartphone size={24} />
               </div>
               <h3>Aadhaar OCR</h3>
               <p>Instant data extraction from official IDs to verify name, age, and gender markers.</p>
             </div>
-            <div className="feature-item">
+            <div className="feature-item" style={{ maxWidth: 'none' }}>
               <div className="social-icon">
                 <Eye size={24} />
               </div>
               <h3>Face Recognition</h3>
               <p>Real-time AI analysis compares your live selfie with your ID document to prevent fraud.</p>
             </div>
-            <div className="feature-item">
+            <div className="feature-item" style={{ maxWidth: 'none' }}>
               <div className="social-icon">
                 <ShieldCheck size={24} />
               </div>
@@ -68,6 +68,9 @@ const VerificationInfo = () => {
       <section className="section-v2">
         <div className="verify-banner-v2">
           <div className="verify-bg-glow"></div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(236, 72, 153, 0.1)', color: 'var(--pink)', padding: '8px 16px', borderRadius: '100px', fontSize: '14px', fontWeight: '600', marginBottom: '20px', position: 'relative', zIndex: 2 }}>
+            <ShieldCheck size={16} /> <span>Certified in 2026</span>
+          </div>
           <h2 className="banner-title gradient-text">Zero Compromise.</h2>
           <p className="banner-text">
             A verified community is a safe community. By ensuring every member is exactly who they say they are, we eliminate the primary source of online threats.

@@ -20,10 +20,7 @@ import heroMain from '../assets/hero-main.png'
 import heroAccent1 from '../assets/hero-accent-1.png'
 import heroAccent2 from '../assets/hero-accent-2.png'
 import verificationMain from '../assets/verification-main.png'
-import gridVoices from '../assets/grid-voices.png'
-import gridLegal from '../assets/grid-legal.png'
-import gridResources from '../assets/grid-resources.png'
-import gridAlerts from '../assets/grid-alerts.png'
+
 
 import LandingNavbar from '../components/layout/LandingNavbar'
 import LandingFooter from '../components/layout/LandingFooter'
