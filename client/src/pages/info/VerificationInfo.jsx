@@ -39,7 +39,7 @@ const VerificationInfo = () => {
           <h2 className="section-title">The <span className="gradient-text">Hectate Standard</span></h2>
           <p className="section-sub">Why we verify every single member.</p>
           
-          <div className="feature-list-centered" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '40px', maxWidth: '1000px', width: '100%', alignItems: 'start' }}>
+          <div className="feature-list-centered" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '40px', maxWidth: '1000px', width: '100%', alignItems: 'start' }}>
             <div className="feature-item" style={{ maxWidth: 'none' }}>
               <div className="social-icon">
                 <Smartphone size={24} />
