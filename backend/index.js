@@ -11,6 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Security Middleware
+app.set('trust proxy', 1); // Crucial for Vercel deployment and secure cookies
 app.use(helmet()); 
 app.use(cors({ origin: true, credentials: true })); // origin: true allows any origin in dev - more robust
 app.use(express.json({ limit: '10mb' })); // Increased for Face Capture payloads 
@@ -86,9 +87,11 @@ app.use((err, req, res, next) => {
   res.status(403).json({ error: 'CSRF token validation failed' });
 });
 
-// For Vercel Serverless deployment
-app.listen(PORT, () => {
-  console.log(`Hectate Security Server running on port ${PORT}`);
-});
+// Only start the server if not running in a serverless environment like Vercel
+if (process.env.NODE_ENV !== 'production' || process.env.RUN_LOCAL === 'true') {
+  app.listen(PORT, () => {
+    console.log(`Hectate Security Server running on port ${PORT}`);
+  });
+}
 
 module.exports = app;

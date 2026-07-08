@@ -36,6 +36,7 @@ export default function LandingNavbar() {
               key={link.name} 
               to={link.path} 
               className={`nav-item ${location.pathname === link.path ? 'active' : ''}`}
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             >
               {link.name}
             </Link>
@@ -63,7 +64,10 @@ export default function LandingNavbar() {
             key={link.name} 
             to={link.path} 
             className="mobile-nav-item"
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              setIsOpen(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
           >
             {link.name}
           </Link>

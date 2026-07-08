@@ -1,50 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, CheckCircle, AlertTriangle, Scale, Users, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
+import { FileText, CheckCircle, AlertTriangle, Scale, Users, ShieldCheck } from 'lucide-react';
 import '../../styles/Landing.css';
 import LandingNavbar from '../../components/layout/LandingNavbar';
 import LandingFooter from '../../components/layout/LandingFooter';
 
 const TermsOfService = () => {
-  const [activeSection, setActiveSection] = useState('eligibility');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  const scrollToSection = (id) => {
-    const element = document.getElementById(id);
-    if (element) {
-      const offset = 120; // Account for fixed header
-      const bodyRect = document.body.getBoundingClientRect().top;
-      const elementRect = element.getBoundingClientRect().top;
-      const elementPosition = elementRect - bodyRect;
-      const offsetPosition = elementPosition - offset;
-
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth'
-      });
-      setActiveSection(id);
-    }
-  };
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const sections = ['eligibility', 'conduct', 'content', 'enforcement'];
-      const scrollPosition = window.scrollY + 180;
-
-      for (const section of sections) {
-        const element = document.getElementById(section);
-        if (element && element.offsetTop <= scrollPosition && (element.offsetTop + element.offsetHeight) > scrollPosition) {
-          setActiveSection(section);
-        }
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   return (
@@ -59,7 +24,7 @@ const TermsOfService = () => {
       </div>
 
       {/* Grid Pattern Overlay */}
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px)', backgroundSize: '50px 50px', pointerEvents: 'none', zIndex: 0, opacity: 0.5 }}></div>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'linear-gradient(rgba(128, 128, 128, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(128, 128, 128, 0.1) 1px, transparent 1px)', backgroundSize: '50px 50px', pointerEvents: 'none', zIndex: 0, opacity: 0.5 }}></div>
 
       <section className="hero-v2" style={{ 
         minHeight: '60vh', 
@@ -80,7 +45,7 @@ const TermsOfService = () => {
             padding: '8px 16px', borderRadius: '100px', 
             background: 'linear-gradient(90deg, rgba(236, 72, 153, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%)',
             border: '1px solid rgba(236, 72, 153, 0.3)',
-            color: '#F9A8D4', fontSize: '13px', fontWeight: '600', letterSpacing: '1px',
+            color: '#EC4899', fontSize: '13px', fontWeight: '600', letterSpacing: '1px',
             marginBottom: '32px',
             boxShadow: '0 0 20px rgba(236, 72, 153, 0.2), inset 0 0 10px rgba(236, 72, 153, 0.1)'
           }}>
@@ -135,90 +100,19 @@ const TermsOfService = () => {
 
       <section style={{ padding: '0 5% 120px', position: 'relative', zIndex: 1 }}>
         <div style={{ 
-          maxWidth: '1200px', 
+          maxWidth: '800px', 
           margin: '0 auto', 
-          display: 'flex', 
+          display: 'flex',
+          flexDirection: 'column', 
           gap: '60px', 
-          alignItems: 'flex-start',
+          alignItems: 'stretch',
           opacity: mounted ? 1 : 0,
           transform: mounted ? 'translateY(0)' : 'translateY(30px)',
           transition: 'all 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.2s'
         }}>
           
-          {/* Sidebar Navigation */}
-          <aside style={{ flex: '0 0 300px', position: 'sticky', top: '120px', display: 'none' }} className="terms-sidebar">
-            <div className="glass-panel" style={{ 
-              padding: '32px', 
-              background: 'var(--glass-panel-bg)', 
-              borderRadius: '24px', 
-              border: '1px solid var(--glass-panel-border)', 
-              backdropFilter: 'blur(20px)',
-              boxShadow: 'var(--glass-panel-shadow)'
-            }}>
-              <h3 style={{ fontFamily: 'Playfair Display', fontSize: '22px', marginBottom: '28px', color: 'var(--theme-text-primary)', fontWeight: '600' }}>Contents</h3>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {[
-                  { id: 'eligibility', icon: CheckCircle, label: 'Eligibility & Verification', color: '#EC4899' },
-                  { id: 'conduct', icon: Users, label: 'Community Conduct', color: '#3B82F6' },
-                  { id: 'content', icon: FileText, label: 'Content Ownership', color: '#A78BFA' },
-                  { id: 'enforcement', icon: AlertTriangle, label: 'Enforcement', color: '#EF4444' }
-                ].map((item) => (
-                  <li key={item.id}>
-                    <button 
-                      onClick={() => scrollToSection(item.id)}
-                      className={`nav-button ${activeSection === item.id ? 'active' : ''}`}
-                      style={{ 
-                        background: activeSection === item.id ? 'var(--glass-panel-bg)' : 'transparent', 
-                        border: '1px solid',
-                        borderColor: activeSection === item.id ? 'var(--glass-panel-border)' : 'transparent',
-                        padding: '12px 16px', 
-                        cursor: 'pointer',
-                        borderRadius: '12px',
-                        display: 'flex', alignItems: 'center', gap: '14px',
-                        color: activeSection === item.id ? 'var(--theme-text-primary)' : 'var(--theme-text-secondary)',
-                        fontSize: '15px', fontWeight: activeSection === item.id ? '600' : '500',
-                        transition: 'all 0.3s ease', textAlign: 'left', width: '100%'
-                      }}
-                    >
-                      <item.icon size={18} style={{ 
-                        color: activeSection === item.id ? item.color : '#6B7280',
-                        transition: 'all 0.3s ease' 
-                      }} />
-                      {item.label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div className="glass-panel support-panel" style={{ 
-              marginTop: '24px', padding: '28px', 
-              background: 'var(--glass-panel-bg)', 
-              borderRadius: '24px', 
-              border: '1px solid var(--glass-panel-border)', 
-              backdropFilter: 'blur(20px)',
-              boxShadow: 'var(--glass-panel-shadow)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <div style={{ padding: '8px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px' }}>
-                  <Mail size={20} color="#60A5FA" />
-                </div>
-                <h4 style={{ margin: 0, color: 'var(--theme-text-primary)', fontSize: '17px', fontWeight: '600' }}>Questions?</h4>
-              </div>
-              <p style={{ color: 'var(--theme-text-secondary)', fontSize: '14px', lineHeight: 1.7, margin: '0 0 20px 0' }}>
-                Our legal team is available to help clarify any of these terms for your peace of mind.
-              </p>
-              <Link to="/contact" className="support-link" style={{ 
-                color: '#60A5FA', fontSize: '14px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: '600',
-                transition: 'all 0.2s ease'
-              }}>
-                Contact Support <ArrowRight size={16} />
-              </Link>
-            </div>
-          </aside>
-
           {/* Main Content */}
-          <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '48px' }} className="terms-content">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }} className="terms-content">
             
             {[
               {
@@ -309,16 +203,16 @@ const TermsOfService = () => {
                 <div style={{ position: 'absolute', top: 0, left: '10%', right: '10%', height: '1px', background: `radial-gradient(ellipse at center, ${section.color}80 0%, transparent 70%)` }}></div>
                 
                 {/* Glowing orb behind icon */}
-                <div style={{ position: 'absolute', top: '40px', left: '40px', width: '100px', height: '100px', background: section.bgGlow, filter: 'blur(40px)', borderRadius: '50%', pointerEvents: 'none' }}></div>
+                <div style={{ position: 'absolute', top: '40px', left: '50%', transform: 'translateX(-50%)', width: '120px', height: '120px', background: section.bgGlow, filter: 'blur(50px)', borderRadius: '50%', pointerEvents: 'none' }}></div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '20px', marginBottom: '32px', position: 'relative', zIndex: 2 }}>
                   <div style={{ 
                     width: '64px', height: '64px', borderRadius: '20px', 
-                    background: `linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)`, 
+                    background: 'var(--glass-panel-bg)', 
                     display: 'flex', alignItems: 'center', justifyContent: 'center', 
                     color: section.color, 
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    boxShadow: `0 10px 20px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.2)`
+                    border: '1px solid var(--glass-panel-border)',
+                    boxShadow: 'var(--glass-panel-shadow)'
                   }}>
                     <section.icon size={32} strokeWidth={1.5} />
                   </div>
@@ -326,12 +220,11 @@ const TermsOfService = () => {
                     {section.title}
                   </h2>
                 </div>
-                <div className="policy-text-content" style={{ textAlign: 'center', color: 'var(--theme-text-secondary)', lineHeight: 1.8, fontSize: '18px', fontWeight: '300', position: 'relative', zIndex: 2 }}>
+                <div className="policy-text-content" style={{ textAlign: 'left', color: 'var(--theme-text-secondary)', lineHeight: 1.8, fontSize: '18px', fontWeight: '400', position: 'relative', zIndex: 2 }}>
                   {section.content}
                 </div>
               </div>
             ))}
-
           </div>
         </div>
       </section>
@@ -344,25 +237,19 @@ const TermsOfService = () => {
           50% { transform: translateY(-30px) scale(1.05); }
         }
         
-        @media (min-width: 1024px) {
-          .terms-sidebar {
-            display: block !important;
-          }
-        }
-        
         .premium-policy-block {
           transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
         
         .premium-policy-block:hover {
           transform: translateY(-6px) scale(1.01);
-          box-shadow: var(--glass-panel-shadow);
+          box-shadow: var(--glass-panel-shadow-hover, 0 20px 40px rgba(0,0,0,0.1));
         }
 
         .premium-list {
           padding-left: 0;
           list-style: none;
-          display: inline-block;
+          display: block;
           text-align: left;
         }
 
@@ -387,20 +274,6 @@ const TermsOfService = () => {
         .premium-list li strong {
           color: var(--theme-text-primary);
           font-weight: 600;
-        }
-
-        .nav-button:hover {
-          background: var(--glass-panel-bg) !important;
-          color: var(--theme-text-primary) !important;
-        }
-        
-        .nav-button:hover svg {
-          opacity: 1 !important;
-        }
-
-        .support-link:hover {
-          color: #93C5FD !important;
-          gap: 12px !important;
         }
       `}</style>
     </div>
