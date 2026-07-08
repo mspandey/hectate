@@ -151,6 +151,46 @@ def verify_match():
 def health():
     return jsonify({"status": "online", "service": "hectate_python_service"})
 
+# ── STEP 4: SENTIMENT ANALYSIS ────────────────────────────────────────────────
+try:
+    from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+    analyzer = SentimentIntensityAnalyzer()
+except ImportError:
+    analyzer = None
+    print("[Warning] vaderSentiment not installed. Sentiment analysis will return neutral.")
+
+@app.route('/analyze-sentiment', methods=['POST'])
+def analyze_sentiment():
+    """
+    Accepts text and returns sentiment label, score, and toxic flag.
+    """
+    data = request.get_json(silent=True) or {}
+    text = data.get('text', '')
+    
+    if not text:
+         return jsonify({"error": "No text provided"}), 400
+         
+    if analyzer:
+        scores = analyzer.polarity_scores(text)
+        compound = scores['compound']
+    else:
+        compound = 0.0
+    
+    if compound >= 0.05:
+        label = "Positive"
+    elif compound <= -0.05:
+        label = "Negative"
+    else:
+        label = "Neutral"
+        
+    toxic = True if compound <= -0.5 else False
+    
+    return jsonify({
+        "label": label,
+        "score": compound,
+        "toxic": toxic
+    })
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
     print(f"[Hectate] Starting Python Service on port {port}...")
