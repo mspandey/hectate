@@ -1,4 +1,5 @@
-
+const prisma = require('./db');
+const bcrypt = require('bcrypt');
 
 async function verifyAllUsers() {
   const users = await prisma.user.findMany();
